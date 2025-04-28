@@ -1,3 +1,4 @@
+import pytest
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -108,3 +109,55 @@ def test_sparse_sgdm_respects_mask_in_parameter_updates(tiny_mlp):
                     original_params[name][trainable_mask],
                     atol=1e-5,
                 ), f"Trainable part of {name} did not change!"
+
+
+def test_sparse_sgdm_init_success(tiny_mlp):
+    model = tiny_mlp
+    named_params = dict(model.named_parameters())
+    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
+
+    optimizer = SparseSGDM(
+        params=model.parameters(),
+        named_params=named_params,
+        grad_mask=grad_mask,
+        lr=0.01
+    )
+
+    # Check internal fields
+    assert optimizer.named_params == named_params
+    assert optimizer.grad_mask == grad_mask
+
+
+def test_sparse_sgdm_init_grad_mask_mismatch(tiny_mlp):
+    model = tiny_mlp
+
+    named_params = dict(model.named_parameters())
+    # Corrupt the grad_mask by removing one key
+    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
+    grad_mask.pop(next(iter(grad_mask)))
+
+    with pytest.raises(AssertionError, match="Mismatch between model parameters and gradient mask keys"):
+        _ = SparseSGDM(
+            params=model.parameters(),
+            named_params=named_params,
+            grad_mask=grad_mask,
+            lr=0.01
+        )
+
+
+def test_sparse_sgdm_init_params_named_params_mismatch(tiny_mlp):
+    model = tiny_mlp
+
+    named_params = dict(model.named_parameters())
+    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
+
+    # Break the param list: remove one parameter
+    broken_params = list(model.parameters())[1:]
+
+    with pytest.raises(AssertionError, match="params and named_params have different lengths"):
+        _ = SparseSGDM(
+            params=broken_params,
+            named_params=named_params,
+            grad_mask=grad_mask,
+            lr=0.01
+        )

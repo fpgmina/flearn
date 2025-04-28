@@ -46,14 +46,37 @@ class SparseSGDM(SGD):
         grad_mask: Dict[str, torch.Tensor],
         named_params: Dict[str, torch.nn.Parameter],
     ):
+
+        param_list = list(params)  # Materialize generator safely
+        named_param_list = list(named_params.values())
+
         super(SparseSGDM, self).__init__(
-            params,
+            param_list,
             lr=lr,
             momentum=momentum,
             dampening=dampening,
             weight_decay=weight_decay,
             nesterov=nesterov,
         )
+
+        # check that named_params and grad_mask have the same keys
+        model_param_names = set(named_params.keys())
+        grad_mask_names = set(grad_mask.keys())
+        assert model_param_names == grad_mask_names, (
+            f"Mismatch between model parameters and gradient mask keys.\n"
+            f"Missing in grad_mask: {model_param_names - grad_mask_names}\n"
+            f"Extra in grad_mask: {grad_mask_names - model_param_names}"
+        )
+
+        # check that params and named_params.values() have the same items
+        assert len(param_list) == len(named_param_list), (
+            f"params and named_params have different lengths: {len(param_list)} vs {len(named_param_list)}"
+        )
+        for p1, p2 in zip(param_list, named_param_list):
+            assert p1 is p2, (
+                f"params and named_params.values() mismatch: {p1} is not {p2}"
+            )
+
         self.named_params = named_params
         self.param_id_to_name = {id(p): n for n, p in named_params.items()}
         self.grad_mask = grad_mask
