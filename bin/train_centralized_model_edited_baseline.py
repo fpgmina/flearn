@@ -3,7 +3,7 @@ import timm
 import torch
 from torch import nn
 
-from core.model_editing import create_fisher_mask
+from core.model_editing import create_fisher_mask, _adapt_fisher_mask
 from core.train import train_model
 from core.train_params import TrainingParams
 from dataset.cifar_100 import get_cifar_dataloaders
@@ -33,9 +33,10 @@ def run_single(
 
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=batch_size)
 
-    # Load model with editable backbone
+    # Load model with editable backbone and modified head to fit on CIFAR100
     model = get_dino_backbone_model(freeze_backbone=False)
     named_params = dict(model.named_parameters())
+    new_mask = _adapt_fisher_mask(mask_full=mask, model=model)
 
     _training_name = (
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
@@ -53,7 +54,7 @@ def run_single(
         optimizer_params={
             "momentum": momentum,
             "weight_decay": weight_decay,
-            "grad_mask": mask,
+            "grad_mask": new_mask,
             "named_params": named_params,
         },
         scheduler_params={"T_max": 20},
