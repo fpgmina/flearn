@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from core.model_editing import compute_fisher_diagonal, create_fisher_mask
+from core.model_editing import compute_fisher_diagonal, create_fisher_mask, _adapt_fisher_mask
 
 
 def test_compute_fisher_diagonal(tiny_cnn):
@@ -49,3 +49,35 @@ def test_create_fisher_mask_shapes_and_counts(tiny_mlp):
     assert (
         total_ones == expected_ones
     ), f"Expected {expected_ones} ones, got {total_ones}"
+
+
+def test_adapt_fisher_mask(tiny_mlp):
+    old_model = tiny_mlp
+    mask_full = {
+        name: torch.ones_like(param)
+        for name, param in old_model.named_parameters()
+    }
+
+    # Create new model (tiny_mlp from fixture) and modify head slightly
+    new_model = tiny_mlp
+
+    # Let's simulate a model with a different head: reinitialize last Linear
+    new_model.net[-1] = nn.Linear(20, 3)  # Change output dimension from 5 -> 3
+
+    # Adapt the mask
+    adapted_mask = _adapt_fisher_mask(mask_full, new_model)
+
+    # Check that all parameter names are present
+    assert set(adapted_mask.keys()) == set(name for name, _ in new_model.named_parameters())
+
+    # Backbone mask should match shape
+    assert adapted_mask["net.0.weight"].shape == old_model.net[0].weight.shape
+    assert adapted_mask["net.0.bias"].shape == old_model.net[0].bias.shape
+
+    # Head mask must be newly created (ones), not copied (shape mismatch expected)
+    assert adapted_mask["net.2.weight"].shape == new_model.net[2].weight.shape
+    assert adapted_mask["net.2.bias"].shape == new_model.net[2].bias.shape
+
+    # Check that the head masks are all ones
+    assert torch.all(adapted_mask["net.2.weight"] == 1.0)
+    assert torch.all(adapted_mask["net.2.bias"] == 1.0)
