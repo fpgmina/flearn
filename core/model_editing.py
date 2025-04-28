@@ -124,3 +124,29 @@ def create_fisher_mask(
         name: mask.view(shape)
         for name, mask, shape in zip(param_names, split_masks, param_shapes)
     }
+
+
+def _adapt_fisher_mask(
+    mask_full: Dict[str, torch.Tensor],
+    model: nn.Module,
+) -> Dict[str, torch.Tensor]:
+    """
+    Adapt a Fisher-based mask created for a pre-trained model
+    to a new model that might have a different architecture (head).
+
+    Args:
+        mask_full (Dict[str, torch.Tensor]): Mask dictionary from the original model.
+        model (nn.Module): New model with possibly different architecture.
+
+    Returns:
+        Dict[str, torch.Tensor]: Adapted mask for the new model.
+    """
+    adapted_mask = {
+        name: (
+            mask_full[name] if (name in mask_full and mask_full[name].shape == param.shape)
+            else torch.ones_like(param, device=param.device)
+        )
+        for name, param in model.named_parameters()
+    }
+    return adapted_mask
+
