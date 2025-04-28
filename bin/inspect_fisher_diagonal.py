@@ -9,7 +9,7 @@ if __name__ == "__main__":
         "../checkpoints/fisher_diag_imagenet100.pth", map_location=get_device()
     )
 
-    print(f"✅ Loaded Fisher diagonal.")
+    print("✅ Loaded Fisher diagonal.")
     print(f"Shape: {fisher_diag.shape}")
     print(f"Dtype: {fisher_diag.dtype}")
     print(f"Min value: {fisher_diag.min().item():.5e}")
