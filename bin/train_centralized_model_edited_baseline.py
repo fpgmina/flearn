@@ -68,10 +68,16 @@ def run_single(
 
     return res_dict["best_accuracy"]
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--fisher_path", type=str, required=True, help="Path to Fisher diagonal .pth file")
+    parser.add_argument(
+        "--fisher_path",
+        type=str,
+        required=True,
+        help="Path to Fisher diagonal .pth file",
+    )
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=5e-4)
@@ -95,5 +101,6 @@ if __name__ == "__main__":
 # from google.colab import drive
 # drive.mount('/content/drive')
 #
-# fisher_path = "/content/drive/MyDrive/checkpoints/fisher_diag.pth"
-# !python -m module_name --fisher_path /content/fisher_diag.pth --batch_size 64 --keep_ratio 0.1
+# fisher_path = "/content/drive/MyDrive/checkpoints/fisher_diag_imagenet100.pth"
+#
+# !python -m module_name --fisher_path fisher_path --batch_size 64 --keep_ratio 0.1
