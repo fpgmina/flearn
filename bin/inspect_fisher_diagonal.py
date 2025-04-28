@@ -5,7 +5,9 @@ from utils.model_utils import get_device
 
 if __name__ == "__main__":
     SAVE_PATH = "../checkpoints/fisher_diag_histogram.png"
-    fisher_diag = torch.load("../checkpoints/fisher_diag_imagenet100.pth", map_location=get_device())
+    fisher_diag = torch.load(
+        "../checkpoints/fisher_diag_imagenet100.pth", map_location=get_device()
+    )
 
     print(f"✅ Loaded Fisher diagonal.")
     print(f"Shape: {fisher_diag.shape}")
@@ -26,4 +28,4 @@ if __name__ == "__main__":
     plt.grid(True)
 
     # Save plot
-    plt.savefig(SAVE_PATH, dpi=300, bbox_inches='tight')
+    plt.savefig(SAVE_PATH, dpi=300, bbox_inches="tight")
