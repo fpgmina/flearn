@@ -9,7 +9,6 @@ from utils.model_utils import get_device
 
 if __name__ == "__main__":
 
-    # Path to validation set
     IMAGENET100_VAL_DIR = "/content/drive/MyDrive/datasets/imagenet100/val/"
 
     transform = transforms.Compose(
@@ -63,13 +62,3 @@ if __name__ == "__main__":
     # Save Fisher mask
     torch.save(fisher_mask, "fisher_mask_imagenet100.pth")
     print("✅ Fisher mask saved to fisher_mask_imagenet100.pth")
-
-    # -- DOWNLOAD OUTPUT FILES BACK TO YOUR MACHINE ---
-
-    # from google.colab import files
-
-    # Download Fisher diagonal
-    # files.download("fisher_diag_imagenet100.pth")
-
-    # Download Fisher mask
-    # files.download("fisher_mask_imagenet100.pth")
