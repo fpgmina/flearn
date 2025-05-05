@@ -58,7 +58,9 @@ def compute_fisher_diagonal(
         one element per parameter.
     """
     model.eval()
-    fisher_diag = torch.cat([torch.zeros_like(p.data.flatten()) for p in model.parameters()])
+    fisher_diag = torch.cat(
+        [torch.zeros_like(p.data.flatten()) for p in model.parameters()]
+    )
     total_samples = 0
     device = get_device()
 
@@ -84,8 +86,7 @@ def compute_fisher_diagonal(
 
         grad_vector = torch.cat(grads)
         fisher_diag += grad_vector.pow(2)
-
-        total_samples += 1
+        total_samples += inputs.size(0)
 
     fisher_diag /= total_samples
     return fisher_diag
