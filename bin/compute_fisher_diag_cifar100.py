@@ -30,8 +30,8 @@ if __name__ == "__main__":
     print("✅ Fisher diagonal computed. Shape:", fisher_diag.shape)
 
     # Save Fisher diagonal
-    torch.save(fisher_diag, "fisher_diag_imagenet100.pth")
-    print("✅ Fisher diagonal saved to fisher_diag_imagenet100.pth")
+    torch.save(fisher_diag, "fisher_diag_cifar100.pth")
+    print("✅ Fisher diagonal saved to fisher_diag_cifar100.pth")
 
     # --- CREATE FISHER MASK ---
 

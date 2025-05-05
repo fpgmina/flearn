@@ -1,14 +1,11 @@
+import argparse
 import torch
 import matplotlib.pyplot as plt
 
 from utils.model_utils import get_device
 
-if __name__ == "__main__":
-    SAVE_PATH = "../checkpoints/fisher_diag_histogram.png"
-    fisher_diag = torch.load(
-        "../checkpoints/fisher_diag_imagenet100.pth", map_location=get_device()
-    )
 
+def _inspect_fisher(fisher_diag):
     print("✅ Loaded Fisher diagonal.")
     print(f"Shape: {fisher_diag.shape}")
     print(f"Dtype: {fisher_diag.dtype}")
@@ -18,6 +15,8 @@ if __name__ == "__main__":
     print(f"Std deviation: {fisher_diag.std().item():.5e}")
     print(f"Number of elements: {fisher_diag.numel()}")
 
+
+def _plot_fisher(fisher_diag, save_path):
     plt.figure(figsize=(10, 6))
 
     # Plot histogram
@@ -29,3 +28,25 @@ if __name__ == "__main__":
 
     # Save plot
     plt.savefig(SAVE_PATH, dpi=300, bbox_inches="tight")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--fisher_path",
+        type=str,
+        required=True,
+        help="Path to Fisher diagonal .pth file",
+    )
+
+    args = parser.parse_args()
+    fisher_diag = torch.load(args.fisher_path, map_location=get_device())
+
+    SAVE_PATH = args.fisher_path.split("/")[-1].split(".pth")[0] + "_histogram.png"
+    _inspect_fisher(fisher_diag)
+    _plot_fisher(fisher_diag, SAVE_PATH)
+
+
+# python ./bin/inspect_fisher_diagonal.py --fisher_path "./checkpoints/fisher_diag_cifar100.pth"
