@@ -105,7 +105,6 @@ def test_calibrate_talos_mask(tiny_mlp):
         loss_fn=loss_fn,
         final_sparsity=0.8,
         R=3,
-        device="cpu",
     )
 
     # Check that the mask contains only 0s and 1s
