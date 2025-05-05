@@ -1,8 +1,4 @@
 import torch
-import timm
-import torchvision.datasets as datasets
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
 from torch import nn
 from core.model_editing import compute_fisher_diagonal, create_fisher_mask
 from dataset.cifar_100 import get_cifar_dataloaders
