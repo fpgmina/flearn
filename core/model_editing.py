@@ -160,7 +160,6 @@ def calibrate_talos_mask(
     loss_fn: nn.Module,
     final_sparsity: float,
     R: int,
-    device: str = "cuda",
 ) -> Dict[str, torch.Tensor]:
     """
     TaLoS-style sparse fine-tuning mask calibration using iterative Fisher scoring.
@@ -171,11 +170,11 @@ def calibrate_talos_mask(
         loss_fn: Loss function (e.g., CrossEntropyLoss)
         final_sparsity: Target sparsity (0 < final_sparsity < 1)
         R: Number of pruning rounds
-        device: 'cuda' or 'cpu'
 
     Returns:
         c: A dict mapping parameter names to binary 0/1 masks
     """
+    device = get_device()
     model = copy.deepcopy(model)
     model.to(device)
     model.eval()
