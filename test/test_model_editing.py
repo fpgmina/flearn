@@ -1,7 +1,12 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from core.model_editing import compute_fisher_diagonal, create_fisher_mask, _adapt_fisher_mask
+from core.model_editing import (
+    compute_fisher_diagonal,
+    create_fisher_mask,
+    _adapt_fisher_mask,
+    calibrate_talos_mask,
+)
 
 
 def test_compute_fisher_diagonal(tiny_cnn):
@@ -54,8 +59,7 @@ def test_create_fisher_mask_shapes_and_counts(tiny_mlp):
 def test_adapt_fisher_mask(tiny_mlp):
     old_model = tiny_mlp
     mask_full = {
-        name: torch.ones_like(param)
-        for name, param in old_model.named_parameters()
+        name: torch.ones_like(param) for name, param in old_model.named_parameters()
     }
 
     # Create new model (tiny_mlp from fixture) and modify head slightly
@@ -68,7 +72,9 @@ def test_adapt_fisher_mask(tiny_mlp):
     adapted_mask = _adapt_fisher_mask(mask_full, new_model)
 
     # Check that all parameter names are present
-    assert set(adapted_mask.keys()) == set(name for name, _ in new_model.named_parameters())
+    assert set(adapted_mask.keys()) == set(
+        name for name, _ in new_model.named_parameters()
+    )
 
     # Backbone mask should match shape
     assert adapted_mask["net.0.weight"].shape == old_model.net[0].weight.shape
@@ -81,3 +87,35 @@ def test_adapt_fisher_mask(tiny_mlp):
     # Check that the head masks are all ones
     assert torch.all(adapted_mask["net.2.weight"] == 1.0)
     assert torch.all(adapted_mask["net.2.bias"] == 1.0)
+
+
+def test_calibrate_talos_mask(tiny_mlp):
+    model = tiny_mlp
+    loss_fn = nn.CrossEntropyLoss()
+
+    # Create synthetic dataset
+    x = torch.randn(100, 10)
+    y = torch.randint(0, 5, (100,))
+    dataset = TensorDataset(x, y)
+    dataloader = DataLoader(dataset, batch_size=10)
+
+    mask = calibrate_talos_mask(
+        model=model,
+        dataloader=dataloader,
+        loss_fn=loss_fn,
+        final_sparsity=0.8,
+        R=3,
+        device="cpu",
+    )
+
+    # Check that the mask contains only 0s and 1s
+    for name, tensor in mask.items():
+        assert torch.all(
+            (tensor == 0) | (tensor == 1)
+        ), f"Mask values must be 0 or 1, found in {name}"
+
+    # Check overall sparsity is as expected
+    total_params = sum(t.numel() for t in mask.values())
+    kept_params = sum(t.sum().item() for t in mask.values())
+    sparsity = 1 - kept_params / total_params
+    assert abs(sparsity - 0.8) < 0.05, f"Sparsity is {sparsity}, expected ~0.8"

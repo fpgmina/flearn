@@ -120,7 +120,7 @@ def test_sparse_sgdm_init_success(tiny_mlp):
         params=model.parameters(),
         named_params=named_params,
         grad_mask=grad_mask,
-        lr=0.01
+        lr=0.01,
     )
 
     # Check internal fields
@@ -136,12 +136,14 @@ def test_sparse_sgdm_init_grad_mask_mismatch(tiny_mlp):
     grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
     grad_mask.pop(next(iter(grad_mask)))
 
-    with pytest.raises(AssertionError, match="Mismatch between model parameters and gradient mask keys"):
+    with pytest.raises(
+        AssertionError, match="Mismatch between model parameters and gradient mask keys"
+    ):
         _ = SparseSGDM(
             params=model.parameters(),
             named_params=named_params,
             grad_mask=grad_mask,
-            lr=0.01
+            lr=0.01,
         )
 
 
@@ -154,10 +156,12 @@ def test_sparse_sgdm_init_params_named_params_mismatch(tiny_mlp):
     # Break the param list: remove one parameter
     broken_params = list(model.parameters())[1:]
 
-    with pytest.raises(AssertionError, match="params and named_params have different lengths"):
+    with pytest.raises(
+        AssertionError, match="params and named_params have different lengths"
+    ):
         _ = SparseSGDM(
             params=broken_params,
             named_params=named_params,
             grad_mask=grad_mask,
-            lr=0.01
+            lr=0.01,
         )

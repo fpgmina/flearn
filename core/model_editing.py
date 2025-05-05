@@ -1,6 +1,8 @@
+import copy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 from typing import Dict, Optional
 
 from utils.model_utils import get_device
@@ -143,10 +145,84 @@ def _adapt_fisher_mask(
     """
     adapted_mask = {
         name: (
-            mask_full[name] if (name in mask_full and mask_full[name].shape == param.shape)
+            mask_full[name]
+            if (name in mask_full and mask_full[name].shape == param.shape)
             else torch.ones_like(param, device=param.device)
         )
         for name, param in model.named_parameters()
     }
     return adapted_mask
 
+
+def calibrate_talos_mask(
+    model: nn.Module,
+    dataloader: DataLoader,
+    loss_fn: nn.Module,
+    final_sparsity: float,
+    R: int,
+    device: str = "cuda",
+) -> Dict[str, torch.Tensor]:
+    """
+    TaLoS-style sparse fine-tuning mask calibration using iterative Fisher scoring.
+
+    Args:
+        model: Pretrained torch.nn.Module (θ₀)
+        dataloader: Dataset Dt
+        loss_fn: Loss function (e.g., CrossEntropyLoss)
+        final_sparsity: Target sparsity (0 < final_sparsity < 1)
+        R: Number of pruning rounds
+        device: 'cuda' or 'cpu'
+
+    Returns:
+        c: A dict mapping parameter names to binary 0/1 masks
+    """
+    model = copy.deepcopy(model)
+    model.to(device)
+    model.eval()
+
+    c: Dict[str, torch.Tensor] = {
+        name: torch.ones_like(p, dtype=torch.float32, device=device)
+        for name, p in model.named_parameters()
+        if p.requires_grad
+    }
+
+    m = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    for r in range(1, R + 1):
+        curr_sparsity = final_sparsity * (r / R)
+
+        s: Dict[str, torch.Tensor] = {
+            name: torch.zeros_like(p, device=device)
+            for name, p in model.named_parameters()
+            if p.requires_grad
+        }
+
+        for x, _ in dataloader:
+            x = x.to(device)
+            model.zero_grad()
+
+            logits = model(x)
+            probs = F.softmax(logits, dim=1)
+            y_sampled = torch.multinomial(probs, num_samples=1).squeeze()
+
+            loss = loss_fn(logits, y_sampled)
+            loss.backward()
+
+            for name, p in model.named_parameters():
+                if p.grad is not None:
+                    s[name] += (p.grad.detach() ** 2) * c[name]
+
+        num_to_keep = min(int((1 - curr_sparsity) * m), m - 1)
+
+        all_scores_flat = torch.cat([v.view(-1) for v in s.values()])
+        sorted_scores, _ = torch.sort(all_scores_flat, descending=True)
+        threshold_value = sorted_scores[num_to_keep - 1]  # retain top scores
+
+        for name in s:
+            c[name] = torch.where(
+                s[name] >= threshold_value,
+                torch.ones_like(c[name]),
+                torch.zeros_like(c[name]),
+            )
+
+    return c
