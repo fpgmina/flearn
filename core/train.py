@@ -134,7 +134,7 @@ def train_model(
         training_params (TrainingParams): Training parameters including model, optimizer, loss function, and scheduler.
         train_loader (DataLoader): PyTorch DataLoader for the training dataset.
         val_loader (Optional[DataLoader], optional): PyTorch DataLoader for the validation dataset, defaults to None.
-        project_name (str, optional): Name of the WandB project, defaults to "mldl".
+        project_name (str, optional): Name of the WandB project, defaults to "flearn".
         wandb_log (bool): Use wandb to log training output, otherwise fallback to default logger. Defaults to True.
         wandb_save (bool): Use wandb to save trained model, otherwise do not save. Defaults to True.
 
