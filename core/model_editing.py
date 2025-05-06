@@ -71,8 +71,23 @@ def compute_fisher_diagonal(
         inputs, targets = inputs.to(device), targets.to(device)
         model.zero_grad()
 
+        # NOTE: PyTorch loss functions like CrossEntropyLoss return the mean loss over the batch by default.
+        #    L_batch = (1/B) ∑ L_i
+        # If we call loss.backward() directly, it computes the gradient of the mean loss:
+        #     ∇θ L_batch = ∇θ (1/B) ∑ L_i = (1/B) ∑ ∇θ L_i
+        # Squaring this average gradient:
+        #     (∇θ L_batch)^2 = (1/B ∑ ∇θ L_i)^2
+        # is NOT equal to the average of squared per-sample gradients:
+        #     (1/B) ∑ (∇θ L_i)^2
+        # which is what the diagonal of the Fisher Information Matrix requires.
+
+        # To approximate the Fisher Information Matrix correctly, we need to recover the sum of gradients:
+        #     ∑ ∇θ L_i
+        # This is done by multiplying the mean loss by batch size before backward():
+
         outputs = model(inputs)
         loss = loss_fn(outputs, targets)
+        loss = loss * inputs.size(0)  #  (1/B) ∑ L_i -->  ∑ L_i
         loss.backward()
 
         grads = []
