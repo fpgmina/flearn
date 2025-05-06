@@ -4,14 +4,12 @@ from torch import nn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from typing import Dict, Optional
-from backpack import backpack, extend
-from backpack.extensions import SumGradSquared
 from utils.model_utils import get_device
 
 
 # Loss function (averaged over N samples):
 #
-#     L(θ) = (1 / N) * ∑_{i=1}^{N} L^{(i)}(θ) where L^{(i)} = L(y^i, x^i) i.e. the loss on the i-th data point
+#     L(θ) = (1 / N) * ∑_{i=1}^{N} L^{(i)}(θ) where L^{(i)} := L(y^i, f_θ(x^i)) i.e. the loss on the i-th data point
 #
 # Gradient of the loss with respect to model parameters θ:
 #
@@ -31,13 +29,14 @@ def compute_fisher_diagonal(
     num_batches: Optional[int] = None,
 ) -> torch.Tensor:
     """
-    Compute the diagonal of the Fisher Information Matrix using BackPACK's SumGradSquared.
+    Approximate the diagonal of the Fisher Information Matrix (FIM) using squared gradients computed
+    over mini-batches.
 
     The Fisher Information is given by the expected value of the squared gradient of the loss function:
 
         Fisher(θ) = E_{(x, y) ~ D} [ (∂L(f_θ(x), y) / ∂θ)^2 ]
 
-    This function approximates and returns the diagonal of the Fisher Information Matrix:
+    The sample approximation of the above expectation should be:
 
         Fisher(θ) ≈ (1 / N) * ∑_{i=1}^{N} (∇_θ L^{(i)}(θ))²
 
@@ -46,6 +45,26 @@ def compute_fisher_diagonal(
         - ∇_θ L^{(i)}(θ) is the gradient of the loss with respect to parameters θ
         - N is the number of samples (or mini-batches)
         - The square is element-wise and gives the diagonal approximation
+
+    However, this function only computes an approximation of the Fisher diagonal and returns:
+
+        F_diag ≈ (1/N) ∑_b (∇_θ L_b)²
+
+    where:
+        - b indexes batches from the dataset
+        - N is the number of batches
+        - L_b = (1 / |B|) ∑_{i∈B} ℓ(f_θ(x_i), y_i) is the **average loss over a mini-batch**
+        - ℓ(·,·) is the per-sample loss (e.g., negative log-likelihood)
+        - ∇_θ L_b is the gradient of the average batch loss with respect to the model parameters
+
+    In other words, for computational simplicity, we square the gradient of the average loss over the mini batch,
+    while in fact we should square the gradient of the loss over the individual samples.
+
+    Notes:
+    - This method does **not** compute per-sample gradients.
+    - It squares the gradient of the averaged batch loss, which introduces bias.
+    - It underestimates the true Fisher diagonal, as E[g]² < E[g²].
+    - It's computationally efficient and works with any model
 
     Args:
         model (nn.Module): The model whose parameters are being analyzed.
@@ -59,38 +78,38 @@ def compute_fisher_diagonal(
         one element per parameter.
     """
 
-    model_ext = extend(copy.deepcopy(model))
-    loss_fn_ext = extend(copy.deepcopy(loss_fn))
     model.eval()
     device = get_device()
+    model.to(device)
 
-    # Initialize Fisher diagonal for each parameter
-    fisher_diag = [torch.zeros_like(p, device=device) for p in model_ext.parameters()]
-    total_samples = 0
+    fisher_diag = [torch.zeros_like(p, device=device) for p in model.parameters()]
+    total_batches = 0
 
     for batch_idx, (inputs, targets) in enumerate(dataloader):
         if num_batches is not None and batch_idx >= num_batches:
             break
 
         inputs, targets = inputs.to(device), targets.to(device)
+        model.zero_grad()
 
-        # Forward + loss
-        outputs = model_ext(inputs)
-        loss = loss_fn_ext(outputs, targets)
+        outputs = model(inputs)
+        loss = loss_fn(outputs, targets)  # L_b = average over the batch
 
-        # Backward with BackPACK to compute sum of squared gradients per param
-        with backpack(SumGradSquared()):
-            loss.backward()
+        # Approximation: we compute ∇_θ L_b, then square it,
+        # which is not equal to the average of per-sample (∇_θ ℓ_i)^2
+        loss.backward()
 
-        # Accumulate per-parameter squared gradient sums
-        for f_diag, p in zip(fisher_diag, model.parameters()):
-            f_diag += getattr(p, "sum_grad_squared", torch.zeros_like(p))
+        for i, p in enumerate(model.parameters()):
+            if p.grad is not None:
+                fisher_diag[i] += p.grad.detach() ** 2
 
-        total_samples += inputs.size(0)
-        model_ext.zero_grad(set_to_none=True)
+        total_batches += 1
 
-    # Normalize to get empirical Fisher diagonal
-    fisher_diag = [f / total_samples for f in fisher_diag]
+    if total_batches == 0:
+        raise ValueError("No batches processed for Fisher approximation.")
+
+    # Normalize by the number of batches (approximate Fisher expectation over data)
+    fisher_diag = [f / total_batches for f in fisher_diag]
 
     # Flatten and concatenate all parameter diagonals into one tensor
     return torch.cat([f.flatten() for f in fisher_diag])
