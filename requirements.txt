@@ -1,7 +1,6 @@
 alembic==1.15.1
 annotated-types==0.7.0
 attrs==25.3.0
-backpack-for-pytorch==1.7.1
 Brotli @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_d7pp3g74_g/croot/brotli-split_1736182638718/work
 certifi==2025.1.31
 charset-normalizer==3.4.1
@@ -10,7 +9,6 @@ colorlog==6.9.0
 contourpy @ file:///private/var/folders/c_/qfmhj66j0tn016nkx_th4hxm0000gp/T/abs_6236u4rf19/croot/contourpy_1732540057596/work
 cycler @ file:///tmp/build/80754af9/cycler_1637851556182/work
 docker-pycreds==0.4.0
-einops==0.8.1
 filelock==3.18.0
 fonttools @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_706ove9ndu/croot/fonttools_1737039799828/work
 fsspec==2025.3.0
@@ -60,7 +58,6 @@ torchvision==0.17.2
 tornado @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_a2c0voe1m0/croot/tornado_1733960496093/work
 tqdm==4.67.1
 typing_extensions==4.12.2
-unfoldNd==0.2.3
 unicodedata2 @ file:///private/var/folders/sy/f16zz6x50xz3113nwtb9bvq00000gp/T/abs_c9zunc70re/croot/unicodedata2_1736544422992/work
 urllib3==2.3.0
 wandb==0.19.8
