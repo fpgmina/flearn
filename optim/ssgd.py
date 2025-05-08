@@ -96,7 +96,8 @@ class SparseSGDM(SGD):
                 if param.grad is not None and name in self.grad_mask:
                     if param.grad.shape != self.grad_mask[name].shape:
                         raise ValueError(
-                            f"Gradient shape {param.grad.shape} does not match mask shape {self.grad_mask[name].shape} for parameter '{name}'"
+                            f"Gradient shape {param.grad.shape} does not match mask shape {self.grad_mask[name].shape} "
+                            f"for parameter '{name}'"
                         )
                     param.grad.data *= self.grad_mask[name]
 
