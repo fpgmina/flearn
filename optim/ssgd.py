@@ -24,6 +24,10 @@ class SparseSGDM(SGD):
         grad_mask (Dict[str, torch.Tensor]): Dictionary mapping parameter names to binary masks
             of the same shape. A value of 1 allows gradient updates; 0 freezes the parameter.
 
+    Note on parameter freezing: During each call to .step(), it multiplies the gradient of each parameter by the mask,
+    effectively zeroing gradients where the mask is 0. This prevents any update to the parameter when super().step()
+    is eventually called.
+
     Example:
         >>> optimizer = SparseSGDM(named_params, grad_mask, lr=0.01)
         >>> loss.backward()
@@ -90,6 +94,10 @@ class SparseSGDM(SGD):
                 # Applying the gradient mask only if that name is in the mask
                 name = self.param_id_to_name.get(id(param))
                 if param.grad is not None and name in self.grad_mask:
+                    if param.grad.shape != self.grad_mask[name].shape:
+                        raise ValueError(
+                            f"Gradient shape {param.grad.shape} does not match mask shape {self.grad_mask[name].shape} for parameter '{name}'"
+                        )
                     param.grad.data *= self.grad_mask[name]
 
         return super().step(closure)
