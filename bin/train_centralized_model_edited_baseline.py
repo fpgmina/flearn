@@ -98,11 +98,3 @@ if __name__ == "__main__":
     )
 
     print(f"✅ Best validation accuracy: {best_acc:.4f}")
-
-
-# from google.colab import drive
-# drive.mount('/content/drive')
-#
-# fisher_path = "/content/drive/MyDrive/checkpoints/fisher_diag_imagenet100.pth"
-#
-# !python -m module_name --fisher_path fisher_path --batch_size 64 --keep_ratio 0.1
