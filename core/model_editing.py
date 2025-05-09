@@ -1,4 +1,6 @@
 import copy
+
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -121,8 +123,8 @@ def create_fisher_mask(
     """
     Create a dictionary of binary gradient masks based on Fisher importance scores.
 
-    Keeps the top-k% most important parameters (based on the Fisher Information diagonal),
-    and masks the rest (sets their gradients to zero during training).
+    Keeps the top-k% most important parameters masking them to 1 and sets
+    the rest to zero (sets their gradients to zero during training).
 
     Args:
         fisher_diag (torch.Tensor): Flattened tensor of Fisher Information scores (1D).
@@ -133,9 +135,18 @@ def create_fisher_mask(
         Dict[str, torch.Tensor]: Dictionary mapping parameter names to binary masks
                                  with the same shape as the parameter tensors.
     """
+    assert 0 < keep_ratio <1, "keep_ratio needs to be between 0 and 1"
     k = int(len(fisher_diag) * keep_ratio)
-    threshold = torch.topk(fisher_diag, k, largest=True).values[-1]
-    flat_mask = (fisher_diag >= threshold).float()
+
+    # Default: all parameters allowed to update
+    flat_mask = torch.ones_like(fisher_diag)
+
+    # Find top-k important indices to freeze
+    # 1 for unimportant paramters, 0 for the important ones so that gradient does not update in SparseSGD
+    
+    if k > 0:
+        important_indices = torch.topk(fisher_diag, k=k, largest=True).indices
+        flat_mask[important_indices] = 0.0
 
     param_sizes = [p.numel() for _, p in model.named_parameters()]
     param_shapes = [p.shape for _, p in model.named_parameters()]
@@ -148,9 +159,118 @@ def create_fisher_mask(
     }
 
 
-def _adapt_fisher_mask(
-    mask_full: Dict[str, torch.Tensor],
+
+# Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
+#
+# Consider a simple linear model: y_hat = w1 * x1 + w2 * x2
+#
+# Suppose we prune w1 by setting it to zero: w1 = 0, w2 != 0
+#
+# In the forward pass:
+#   y_hat = w1 * x1 + w2 * x2 = w2 * x2 (w1 does not contribute anything in the forward pass!)
+#
+# In the loss function (e.g., mean squared error):
+#   L = (y - y_hat)^2
+#
+# Now, we compute the gradients using backpropagation.
+#
+# Despite w1 being zero, its gradient is:
+#   ∂L/∂w1 = ∂L/∂y * ∂y/∂w1 = 2 * (y - y_hat) * x1
+#
+# => So, the gradient of w1 is NON-ZERO even though its value is zero.
+#
+# This happens because the gradient reflects how the loss would change if w1 changed —
+# even if it's currently zero, the computation graph is still intact and tracks how
+# sensitive the loss is to it.
+#
+# => Therefore: Simply setting a parameter to zero (e.g., param *= mask) is NOT enough
+# to keep it frozen — the optimizer could still update it if its gradient is non-zero.
+# You must ALSO zero the gradient before each optimizer step (e.g., param.grad *= mask)
+# to truly "freeze" the parameter and prevent it from being updated.
+
+# -------------------------------------------------------------------------------
+# WHY ZEROING THE PARAMETER IS OFTEN "GOOD ENOUGH" for parameter sensitivity:
+#
+# In practice, even if we don’t zero the gradients explicitly, setting parameters to 0
+# often *suppresses* their gradient magnitude over time.
+#
+# 1. Zeroed parameters contribute nothing to the output during the forward pass.
+# 2. As a result, the loss becomes less sensitive to those parameters.
+# 3. This leads to smaller gradients (or zero gradients) over time.
+#
+# So although it's not guaranteed, once zeroed, parameters tend to stay small or shrink further.
+#
+# => However, if strict sparsity is required (e.g., for efficiency or compression),
+# it's safer to mask both parameter values and gradients explicitly.
+
+
+def apply_mask(model: nn.Module, mask_dict: Dict[str, torch.Tensor]) -> nn.Module:
+    """
+    Return a new model with the given binary mask applied to its parameters (zeroed out).
+    Zeroed out parameters naturally accumulate smaller Fisher scores, see comments above on apply_mask and
+    comments on progressive pruning within progressive_mask_calibration.
+    """
+    model_copy = copy.deepcopy(model).to(next(model.parameters()).device)
+    with torch.no_grad():
+        for name, param in model_copy.named_parameters():
+            if name in mask_dict:
+                param.mul_(mask_dict[name])
+    return model_copy
+
+
+def progressive_mask_calibration(
     model: nn.Module,
+    dataloader: DataLoader,
+    loss_fn: nn.Module,
+    final_sparsity: float = 0.9,
+    initial_sparsity: float = 0.2,
+    rounds: int = 5,
+    num_batches: Optional[int] = None,
+) -> Dict[str, torch.Tensor]:
+    """
+    Progressively create a gradient mask using Fisher info, applying pruning at each round.
+    This method is based on "The Lottery Ticket Hypothesis: finding sparse, trainable neural networks" by
+    Frankle and Carbin: https://arxiv.org/abs/1803.03635.
+    """
+    device = get_device()
+    model.to(device)
+
+    # Start fully trainable
+    grad_mask = {
+        name: torch.ones_like(param, device=device)
+        for name, param in model.named_parameters()
+        if param.requires_grad
+    }
+
+    keep_ratios = np.geomspace(1.0 - initial_sparsity, 1.0 - final_sparsity, num=rounds)
+    # initial_sparsity =0.2 & final_sparsity = 0.9 & rounds=5
+    # ==> keep_ratios = [0.8       , 0.47568285, 0.28284271, 0.16817928, 0.1
+
+    for keep_ratio in keep_ratios:
+        # Apply current mask to model
+        masked_model = apply_mask(model, grad_mask)
+
+        # Recompute Fisher based on the masked model
+        fisher_diag = compute_fisher_diagonal(masked_model, dataloader, loss_fn, num_batches)
+
+        # Create new mask (0 = freeze, 1 = allow update)
+        new_mask = create_fisher_mask(fisher_diag, model, keep_ratio=keep_ratio)
+
+        # Progressive pruning.
+        # Update cumulative mask (once frozen, always frozen) i.e. once a parameter has been set to zero because it's
+        # important it's going to stay set to zero. If it is unimportant in the old mask (grad_mask=1) and important in the
+        # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
+        grad_mask = {
+            name: grad_mask[name] * new_mask[name]
+            for name in grad_mask
+        }
+
+    return grad_mask
+
+
+def _adapt_fisher_mask(
+        mask_full: Dict[str, torch.Tensor],
+        model: nn.Module,
 ) -> Dict[str, torch.Tensor]:
     """
     Adapt a Fisher-based mask created for a pre-trained model
@@ -172,76 +292,3 @@ def _adapt_fisher_mask(
         for name, param in model.named_parameters()
     }
     return adapted_mask
-
-
-def calibrate_talos_mask(
-    model: nn.Module,
-    dataloader: DataLoader,
-    loss_fn: nn.Module,
-    final_sparsity: float,
-    R: int,
-) -> Dict[str, torch.Tensor]:
-    """
-    TaLoS-style sparse fine-tuning mask calibration using iterative Fisher scoring.
-
-    Args:
-        model: Pretrained torch.nn.Module (θ₀)
-        dataloader: Dataset Dt
-        loss_fn: Loss function (e.g., CrossEntropyLoss)
-        final_sparsity: Target sparsity (0 < final_sparsity < 1)
-        R: Number of pruning rounds
-
-    Returns:
-        c: A dict mapping parameter names to binary 0/1 masks
-    """
-    device = get_device()
-    model = copy.deepcopy(model)
-    model.to(device)
-    model.eval()
-
-    c: Dict[str, torch.Tensor] = {
-        name: torch.ones_like(p, dtype=torch.float32, device=device)
-        for name, p in model.named_parameters()
-        if p.requires_grad
-    }
-
-    m = sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-    for r in range(1, R + 1):
-        curr_sparsity = final_sparsity * (r / R)
-
-        s: Dict[str, torch.Tensor] = {
-            name: torch.zeros_like(p, device=device)
-            for name, p in model.named_parameters()
-            if p.requires_grad
-        }
-
-        for x, _ in dataloader:
-            x = x.to(device)
-            model.zero_grad()
-
-            logits = model(x)
-            probs = F.softmax(logits, dim=1)
-            y_sampled = torch.multinomial(probs, num_samples=1).squeeze()
-
-            loss = loss_fn(logits, y_sampled)
-            loss.backward()
-
-            for name, p in model.named_parameters():
-                if p.grad is not None:
-                    s[name] += (p.grad.detach() ** 2) * c[name]
-
-        num_to_keep = min(int((1 - curr_sparsity) * m), m - 1)
-
-        all_scores_flat = torch.cat([v.view(-1) for v in s.values()])
-        sorted_scores, _ = torch.sort(all_scores_flat, descending=True)
-        threshold_value = sorted_scores[num_to_keep - 1]  # retain top scores
-
-        for name in s:
-            c[name] = torch.where(
-                s[name] >= threshold_value,
-                torch.ones_like(c[name]),
-                torch.zeros_like(c[name]),
-            )
-
-    return c
