@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 from typing import Dict, Optional
 from utils.model_utils import get_device
 
