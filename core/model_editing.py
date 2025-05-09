@@ -135,7 +135,7 @@ def create_fisher_mask(
         Dict[str, torch.Tensor]: Dictionary mapping parameter names to binary masks
                                  with the same shape as the parameter tensors.
     """
-    assert 0 < keep_ratio <1, "keep_ratio needs to be between 0 and 1"
+    assert 0 < keep_ratio < 1, "keep_ratio needs to be between 0 and 1"
     k = int(len(fisher_diag) * keep_ratio)
 
     # Default: all parameters allowed to update
@@ -143,7 +143,7 @@ def create_fisher_mask(
 
     # Find top-k important indices to freeze
     # 1 for unimportant paramters, 0 for the important ones so that gradient does not update in SparseSGD
-    
+
     if k > 0:
         important_indices = torch.topk(fisher_diag, k=k, largest=True).indices
         flat_mask[important_indices] = 0.0
@@ -157,7 +157,6 @@ def create_fisher_mask(
         name: mask.view(shape)
         for name, mask, shape in zip(param_names, split_masks, param_shapes)
     }
-
 
 
 # Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
@@ -251,7 +250,9 @@ def progressive_mask_calibration(
         masked_model = apply_mask(model, grad_mask)
 
         # Recompute Fisher based on the masked model
-        fisher_diag = compute_fisher_diagonal(masked_model, dataloader, loss_fn, num_batches)
+        fisher_diag = compute_fisher_diagonal(
+            masked_model, dataloader, loss_fn, num_batches
+        )
 
         # Create new mask (0 = freeze, 1 = allow update)
         new_mask = create_fisher_mask(fisher_diag, model, keep_ratio=keep_ratio)
@@ -260,17 +261,14 @@ def progressive_mask_calibration(
         # Update cumulative mask (once frozen, always frozen) i.e. once a parameter has been set to zero because it's
         # important it's going to stay set to zero. If it is unimportant in the old mask (grad_mask=1) and important in the
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
-        grad_mask = {
-            name: grad_mask[name] * new_mask[name]
-            for name in grad_mask
-        }
+        grad_mask = {name: grad_mask[name] * new_mask[name] for name in grad_mask}
 
     return grad_mask
 
 
 def _adapt_fisher_mask(
-        mask_full: Dict[str, torch.Tensor],
-        model: nn.Module,
+    mask_full: Dict[str, torch.Tensor],
+    model: nn.Module,
 ) -> Dict[str, torch.Tensor]:
     """
     Adapt a Fisher-based mask created for a pre-trained model
