@@ -1,7 +1,7 @@
 import pytest
 import torch
 from torch import nn
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, TensorDataset, DataLoader
 
 
 class SimpleDataset(Dataset):
@@ -99,3 +99,12 @@ def ternary_dataset():
     data = [i for i in range(12)]
     labels = [i % 3 for i in range(12)]  # Three classes: 0, 1, and 2
     return SimpleDataset(data, labels)
+
+
+@pytest.fixture
+def dummy_dataloader():
+    torch.manual_seed(42)
+    inputs = torch.randn(100, 10)
+    targets = torch.randint(0, 5, (100,))
+    dataset = TensorDataset(inputs, targets)
+    return DataLoader(dataset, batch_size=16)

@@ -1,4 +1,5 @@
 import copy
+import warnings
 
 import numpy as np
 import torch
@@ -117,25 +118,26 @@ def compute_fisher_diagonal(
 
 
 def create_fisher_mask(
-    fisher_diag: torch.Tensor, model: nn.Module, keep_ratio: float = 0.2
+    fisher_diag: torch.Tensor, model: nn.Module, sparsity: float = 0.9
 ) -> Dict[str, torch.Tensor]:
     """
     Create a dictionary of binary gradient masks based on Fisher importance scores.
 
-    Keeps the top-k% most important parameters masking them to 1 and sets
-    the rest to zero (sets their gradients to zero during training).
+    Keeps sparsity% of the most important parameters masking them to 0 and sets
+    the rest to 1 (sets their gradients to zero during training).
 
     Args:
         fisher_diag (torch.Tensor): Flattened tensor of Fisher Information scores (1D).
         model (nn.Module): The model whose parameters will be masked.
-        keep_ratio (float): Fraction of total parameters to keep (set mask=1).
+        sparsity (float): Fraction of total parameters that are frozen (set mask=0).
 
     Returns:
         Dict[str, torch.Tensor]: Dictionary mapping parameter names to binary masks
                                  with the same shape as the parameter tensors.
     """
-    assert 0 < keep_ratio < 1, "keep_ratio needs to be between 0 and 1"
-    k = int(len(fisher_diag) * keep_ratio)
+    assert 0 < sparsity < 1, "sparsity needs to be between 0 and 1"
+
+    k = int(len(fisher_diag) * sparsity)
 
     # Default: all parameters allowed to update
     flat_mask = torch.ones_like(fisher_diag)
@@ -144,7 +146,9 @@ def create_fisher_mask(
     # 1 for unimportant paramters, 0 for the important ones so that gradient does not update in SparseSGD
 
     if k > 0:
-        important_indices = torch.topk(fisher_diag, k=k, largest=True).indices
+        important_indices = torch.topk(
+            fisher_diag, k=k, largest=True
+        ).indices  # top k scores
         flat_mask[important_indices] = 0.0
 
     param_sizes = [p.numel() for _, p in model.named_parameters()]
@@ -219,10 +223,9 @@ def progressive_mask_calibration(
     model: nn.Module,
     dataloader: DataLoader,
     loss_fn: nn.Module,
-    final_sparsity: float = 0.9,
-    initial_sparsity: float = 0.2,
+    target_sparsity: float = 0.9,
     rounds: int = 5,
-    num_batches: Optional[int] = None,
+    warn_tolerance: float = 0.02,
 ) -> Dict[str, torch.Tensor]:
     """
     Progressively create a gradient mask using Fisher info, applying pruning at each round.
@@ -230,39 +233,60 @@ def progressive_mask_calibration(
     This method is based on:
         "The Lottery Ticket Hypothesis: finding sparse, trainable neural networks" by Frankle and Carbin.
          https://arxiv.org/abs/1803.03635.
+
+    Note: Emits a warning if the final sparsity deviates significantly from the target.
+
+    Args:
+        model (nn.Module): Model to prune.
+        dataloader (DataLoader): DataLoader (not used in dummy logic).
+        loss_fn (nn.Module): Loss function (not used in dummy logic).
+        target_sparsity (float): Target sparsity at the end of pruning.
+        rounds (int): Number of pruning rounds.
+        warn_tolerance (float): Relative deviation tolerance to trigger a warning.
     """
     device = get_device()
     model.to(device)
 
-    # Start fully trainable
+    total_params = sum(p.numel() for p in model.parameters())
     grad_mask = {
         name: torch.ones_like(param, device=device)
         for name, param in model.named_parameters()
         if param.requires_grad
     }
 
-    keep_ratios = np.geomspace(1.0 - initial_sparsity, 1.0 - final_sparsity, num=rounds)
-    # initial_sparsity =0.2 & final_sparsity = 0.9 & rounds=5
-    # ==> keep_ratios = [0.8       , 0.47568285, 0.28284271, 0.16817928, 0.1
+    sparsity_targets = np.geomspace(0.1, target_sparsity, rounds)
 
-    for keep_ratio in keep_ratios:
+    for r, sparsity in enumerate(sparsity_targets):
+        # current_sparsity = target_sparsity * r / rounds
+        print(f"Current sparsity in round {r}: {sparsity}")
         # Apply current mask to model
         masked_model = apply_mask(model, grad_mask)
 
         # Recompute Fisher based on the masked model
-        fisher_diag = compute_fisher_diagonal(
-            masked_model, dataloader, loss_fn, num_batches
-        )
+        fisher_diag = compute_fisher_diagonal(masked_model, dataloader, loss_fn)
 
         # Create new mask (0 = freeze, 1 = allow update)
-        new_mask = create_fisher_mask(fisher_diag, model, keep_ratio=keep_ratio)
+        new_mask = create_fisher_mask(fisher_diag, model, sparsity=sparsity)
+        print(f"zeros in mask: {sum((v==0).sum().item() for v in new_mask.values())}")
 
         # Progressive pruning.
         # Update cumulative mask (once frozen, always frozen) i.e. once a parameter has been set to zero because it's
         # important it's going to stay set to zero. If it is unimportant in the old mask (grad_mask=1) and important in the
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
         grad_mask = {name: grad_mask[name] * new_mask[name] for name in grad_mask}
+        masked = sum((v == 0).sum().item() for v in grad_mask.values())
+        print(f"[Round {r}] Masked: {masked} / {total_params}")
 
+    # Final sparsity check and warning
+    masked_params = sum((v == 0).sum().item() for v in grad_mask.values())
+    actual_sparsity = masked_params / total_params
+    rel_error = abs(actual_sparsity - target_sparsity) / target_sparsity
+
+    if rel_error > warn_tolerance:
+        warnings.warn(
+            f"[WARNING] Final sparsity {actual_sparsity:.4f} deviates from target {target_sparsity:.4f} "
+            f"by {rel_error:.2%} (> {warn_tolerance:.2%} relative tolerance)."
+        )
     return grad_mask
 
 

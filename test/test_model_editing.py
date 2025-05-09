@@ -1,3 +1,4 @@
+import pytest
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -5,6 +6,7 @@ from core.model_editing import (
     compute_fisher_diagonal,
     create_fisher_mask,
     _adapt_fisher_mask,
+    progressive_mask_calibration,
 )
 
 
@@ -27,16 +29,15 @@ def test_compute_fisher_diagonal(tiny_cnn):
     assert (fisher_diag >= 0).all(), "Fisher scores must be non-negative"
 
 
-def test_create_fisher_mask_shapes_and_counts(tiny_mlp):
+@pytest.mark.parametrize("sparsity", [0.2, 0.4, 0.96])
+def test_create_fisher_mask_shapes_and_counts(tiny_mlp, sparsity):
     model = tiny_mlp
     total_params = sum(p.numel() for p in model.parameters())
 
     # Fake Fisher vector with increasing importance
     fisher_diag = torch.linspace(0, 1, steps=total_params)
 
-    # Keep top 20% (i.e., freeze top 20%, unfreeze 80%)
-    keep_ratio = 0.2
-    masks = create_fisher_mask(fisher_diag, model, keep_ratio=keep_ratio)
+    masks = create_fisher_mask(fisher_diag, model, sparsity=sparsity)
 
     # 1. Check correct number of masks
     param_names = [name for name, _ in model.named_parameters()]
@@ -47,12 +48,12 @@ def test_create_fisher_mask_shapes_and_counts(tiny_mlp):
         assert name in masks, f"Missing mask for parameter: {name}"
         assert masks[name].shape == param.shape, f"Shape mismatch for {name}"
 
-    # 3. Check total number of *zeros* matches expected keep count
-    total_zeros = sum((mask == 0).sum().item() for mask in masks.values())
-    expected_zeros = int(total_params * keep_ratio)
+    # 3. Check total number of ones in all masks equals expected count
+    total_ones = sum(mask.sum().item() for mask in masks.values())
+    expected_ones = int(total_params * (1 - sparsity))
     assert (
-        total_zeros == expected_zeros
-    ), f"Expected {expected_zeros} zeros (frozen), got {total_zeros}"
+        total_ones == expected_ones
+    ), f"Expected {expected_ones} ones, got {total_ones}"
 
 
 def test_adapt_fisher_mask(tiny_mlp):
@@ -86,3 +87,30 @@ def test_adapt_fisher_mask(tiny_mlp):
     # Check that the head masks are all ones
     assert torch.all(adapted_mask["net.2.weight"] == 1.0)
     assert torch.all(adapted_mask["net.2.bias"] == 1.0)
+
+
+@pytest.mark.parametrize("target_sparsity", [0.9, 0.8])
+def test_progressive_mask_calibration(tiny_mlp, dummy_dataloader, target_sparsity):
+    model = tiny_mlp
+    loss_fn = nn.CrossEntropyLoss()
+    dataloader = dummy_dataloader
+
+    with pytest.warns(UserWarning, match="Final sparsity") as record:
+        mask = progressive_mask_calibration(
+            model=model,
+            dataloader=dataloader,
+            loss_fn=loss_fn,
+            target_sparsity=target_sparsity,
+            rounds=5,
+            warn_tolerance=0.01,
+        )
+    total_params = sum(p.numel() for p in model.parameters())
+    masked_params = sum((v == 0).sum().item() for v in mask.values())
+    actual_sparsity = masked_params / total_params
+
+    print(
+        f"[Warning Test] Final sparsity: {actual_sparsity:.4f} vs Target: {target_sparsity:.4f}"
+    )
+    assert any(
+        "Final sparsity" in str(w.message) for w in record
+    ), "Expected sparsity warning not raised"

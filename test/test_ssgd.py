@@ -19,7 +19,7 @@ def test_sparse_sgdm_step(tiny_mlp):
     fisher_diag = torch.linspace(0, 1, steps=total_params)
 
     # Create binary masks
-    mask = create_fisher_mask(fisher_diag, model, keep_ratio=0.2)
+    mask = create_fisher_mask(fisher_diag, model, sparsity=0.8)
 
     # named_params = {name: param for name, param in model.named_parameters()}
     named_params = dict(model.named_parameters())
@@ -64,7 +64,7 @@ def test_sparse_sgdm_respects_mask_in_parameter_updates(tiny_mlp):
     fisher_diag = torch.linspace(0, 1, steps=total_params)
 
     # Create a mask that keeps only 20% of parameters trainable
-    mask = create_fisher_mask(fisher_diag, model, keep_ratio=0.2)
+    mask = create_fisher_mask(fisher_diag, model, sparsity=0.8)
     named_params = dict(model.named_parameters())
 
     optimizer = SparseSGDM(
