@@ -160,12 +160,11 @@ def create_fisher_mask(
 
 # Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
 #
-# Consider a simple linear model: y_hat = w1 * x1 + w2 * x2
-#
-# Suppose we prune w1 by setting it to zero: w1 = 0, w2 != 0
+# Consider a simple linear model: y_hat = w1 * x1 + w2 * x2 and suppose we prune w1
+# by setting it to zero: w1 = 0, w2 != 0
 #
 # In the forward pass:
-#   y_hat = w1 * x1 + w2 * x2 = w2 * x2 (w1 does not contribute anything in the forward pass!)
+#   y_hat = w1 * x1 + w2 * x2 = w2 * x2 (i.e. w1 does not contribute anything in the forward pass!)
 #
 # In the loss function (e.g., mean squared error):
 #   L = (y - y_hat)^2
@@ -227,8 +226,10 @@ def progressive_mask_calibration(
 ) -> Dict[str, torch.Tensor]:
     """
     Progressively create a gradient mask using Fisher info, applying pruning at each round.
-    This method is based on "The Lottery Ticket Hypothesis: finding sparse, trainable neural networks" by
-    Frankle and Carbin: https://arxiv.org/abs/1803.03635.
+
+    This method is based on:
+        "The Lottery Ticket Hypothesis: finding sparse, trainable neural networks" by Frankle and Carbin.
+         https://arxiv.org/abs/1803.03635.
     """
     device = get_device()
     model.to(device)
