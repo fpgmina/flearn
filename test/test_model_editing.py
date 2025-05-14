@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
@@ -6,8 +7,97 @@ from core.model_editing import (
     compute_fisher_diagonal,
     create_fisher_mask,
     _adapt_fisher_mask,
-    progressive_mask_calibration,
+    progressive_mask_calibration, Mask,
 )
+from utils.model_utils import get_device
+
+
+
+
+@pytest.fixture
+def sample_mask_dict():
+    return {
+        "layer1.weight": torch.tensor([[1., 0.], [1., 1.]]),
+        "layer2.bias": torch.tensor([0., 1., 1.])
+    }
+
+
+@pytest.fixture
+def mask(sample_mask_dict):
+    return Mask(mask_dict=sample_mask_dict)
+
+
+def test_mask_getitem(mask, sample_mask_dict):
+    assert torch.equal(mask["layer1.weight"], sample_mask_dict["layer1.weight"])
+    assert torch.equal(mask["layer2.bias"], sample_mask_dict["layer2.bias"])
+
+def test_mask_get(mask, sample_mask_dict):
+    assert torch.equal(mask.get("layer1.weight"), sample_mask_dict["layer1.weight"])
+    assert mask.get("nonexistent", default=None) is None
+
+def test_mask_contains(mask):
+    assert "layer1.weight" in mask
+    assert "layer2.bias" in mask
+    assert "nonexistent" not in mask
+
+def test_mask_iter(mask, sample_mask_dict):
+    keys = list(iter(mask))
+    expected_keys = list(sample_mask_dict.keys())
+    assert set(keys) == set(expected_keys)
+
+def test_mask_len(mask, sample_mask_dict):
+    assert len(mask) == len(sample_mask_dict)
+
+def test_mask_keys(mask, sample_mask_dict):
+    assert set(mask.keys()) == set(sample_mask_dict.keys())
+
+def test_mask_values(mask, sample_mask_dict):
+    for val1, val2 in zip(mask.values(), sample_mask_dict.values()):
+        assert torch.equal(val1, val2)
+
+def test_mask_items(mask, sample_mask_dict):
+    for (k1, v1), (k2, v2) in zip(mask.items(), sample_mask_dict.items()):
+        assert k1 == k2
+        assert torch.equal(v1, v2)
+
+def test_mask_sparsity(tiny_mlp):
+    model = tiny_mlp
+    device = get_device()
+    ones_mask_dict= {
+        name: torch.ones_like(param, device=device)
+        for name, param in model.named_parameters()
+    }
+    mask = Mask(mask_dict=ones_mask_dict)
+    assert np.allclose(mask.sparsity, 0.0)
+
+
+
+def test_mask_update():
+    # Create two example masks for a fake model with two parameters
+    mask_a = {
+        "layer1.weight": torch.tensor([[1., 0.], [1., 1.]]),
+        "layer2.bias": torch.tensor([1., 0.])
+    }
+
+    mask_b = {
+        "layer1.weight": torch.tensor([[1., 1.], [0., 1.]]),
+        "layer2.bias": torch.tensor([0., 1.])
+    }
+
+    # Expected output = element-wise product (logical AND on 1s)
+    expected_mask = {
+        "layer1.weight": torch.tensor([[1., 0.], [0., 1.]]),
+        "layer2.bias": torch.tensor([0., 0.])
+    }
+
+    m1 = Mask(mask_dict=mask_a)
+    m2 = Mask(mask_dict=mask_b)
+    updated = m1.update(m2)
+
+    # Check the masks match
+    for name in expected_mask:
+        assert torch.equal(updated.mask_dict[name], expected_mask[name]), \
+            f"Mismatch in {name}: expected {expected_mask[name]}, got {updated.mask_dict[name]}"
 
 
 def test_compute_fisher_diagonal(tiny_cnn):
@@ -89,13 +179,17 @@ def test_adapt_fisher_mask(tiny_mlp):
     assert torch.all(adapted_mask["net.2.bias"] == 1.0)
 
 
+
+
+
+
 @pytest.mark.parametrize("target_sparsity", [0.9, 0.8])
 def test_progressive_mask_calibration(tiny_mlp, dummy_dataloader, target_sparsity):
     model = tiny_mlp
     loss_fn = nn.CrossEntropyLoss()
     dataloader = dummy_dataloader
 
-    with pytest.warns(UserWarning, match="Final sparsity") as record:
+    try:
         mask = progressive_mask_calibration(
             model=model,
             dataloader=dataloader,
@@ -104,13 +198,15 @@ def test_progressive_mask_calibration(tiny_mlp, dummy_dataloader, target_sparsit
             rounds=10,
             warn_tolerance=0.01,
         )
+    except RuntimeError as e:
+        pytest.fail(f"progressive_mask_calibration raised an unexpected error: {e}")
+
     total_params = sum(p.numel() for p in model.parameters())
     masked_params = sum((v == 0).sum().item() for v in mask.values())
     actual_sparsity = masked_params / total_params
 
     print(
-        f"[Warning Test] Final sparsity: {actual_sparsity:.4f} vs Target: {target_sparsity:.4f}"
+        f"[Test] Final sparsity: {actual_sparsity:.4f} vs Target: {target_sparsity:.4f}"
     )
-    assert any(
-        "Final sparsity" in str(w.message) for w in record
-    ), "Expected sparsity warning not raised"
+    assert abs(actual_sparsity - target_sparsity) / target_sparsity <= 0.01, \
+        "Final sparsity deviates beyond allowed tolerance"

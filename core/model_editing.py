@@ -1,12 +1,139 @@
+from __future__ import annotations
+
+import attr
 import copy
+import logging
 import warnings
 
 import numpy as np
 import torch
+from werkzeug.utils import cached_property
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from utils.model_utils import get_device
+
+
+
+
+@attr.s(frozen=True)
+class Mask:
+    """
+    Container for a parameter mask dictionary used in pruning or sparse training. Wraps Dict[str, torch.Tensor].
+
+    Each mask is a tensor with binary values:
+      - `1` indicates a trainable (unmasked) parameter
+      - `0` indicates a frozen (masked out) parameter
+
+    The class provides utilities for validation, analysis, and application of the mask.
+
+    Example:
+    >>> mask = Mask(mask_dict=some_dict)
+    >>> mask.validate_against(model)
+    >>> print(mask.sparsity)
+    >>> print(mask.per_layer_sparsity)
+    >>> torch.save(mask.state_dict(), "mask.pt")
+    >>> loaded = Mask.load_state_dict(torch.load("mask.pt"))
+    >>> param_mask = mask["layer1.weight"]
+    """
+
+    mask_dict: Dict[str, torch.Tensor] = attr.ib(kw_only=True)
+
+    def __attrs_post_init__(self):
+        assert isinstance(self.mask_dict, dict), f"mask must be of type: Dict[str, torch.Tensor] and not of type:{type(self.mask_dict)}"
+        # Validation: all masks must be binary (0 or 1), float or bool, and on the same device
+        for name, tensor in self.mask_dict.items():
+            if not torch.is_tensor(tensor):
+                raise TypeError(f"Mask for '{name}' is not a tensor.")
+            if not tensor.dtype in (torch.float32, torch.bool):
+                raise TypeError(f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}.")
+            if not ((tensor == 0) | (tensor == 1)).all():
+                raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
+
+    @cached_property
+    def num_total_parameters(self) -> int:
+       return sum(t.numel() for t in self.mask_dict.values())
+
+    @cached_property
+    def num_zeroed_parameters(self) -> int:
+        return sum((t == 0).sum().item() for t in self.mask_dict.values())
+
+    @property
+    def sparsity(self) -> float:
+        """
+        Compute total sparsity (fraction of zeros) across all parameters.
+        """
+        return self.num_zeroed_parameters / self.num_total_parameters
+
+
+    @property
+    def per_layer_sparsity(self) -> Dict[str, float]:
+        return {
+            name: (mask == 0).sum().item() / mask.numel()
+            for name, mask in self.mask_dict.items()
+        }
+
+
+    def update(self, other: Mask) -> Mask:
+        """
+        Return new MaskDict with parameters frozen if frozen in either mask (logical AND on 1s).
+        """
+        assert isinstance(other, Mask)
+        return Mask(
+            mask_dict={k: self.mask_dict[k] * other.mask_dict[k] for k in self.mask_dict if k in other.mask_dict}
+        )
+
+    def to(self, device: torch.device) -> Mask:
+        """
+        Move all mask tensors to specified device.
+        """
+        return Mask(mask_dict={k: v.to(device) for k, v in self.mask_dict.items()})
+
+
+    def state_dict(self) -> Dict[str, torch.Tensor]:
+        """
+        Saveable version of the mask dictionary.
+        """
+        return self.mask_dict
+
+    @classmethod
+    def load_state_dict(cls, state: Dict[str, torch.Tensor]) -> Mask:
+        return cls(mask_dict=state)
+
+
+    def validate_against(self, model: torch.nn.Module) -> None:
+        """
+        Ensure that the mask keys match model parameter names, and shapes match.
+        """
+        model_params = dict(model.named_parameters())
+        for name, mask in self.mask_dict.items():
+            if name not in model_params:
+                raise KeyError(f"Mask key '{name}' not found in model parameters.")
+            if mask.shape != model_params[name].shape:
+                raise ValueError(f"Shape mismatch for '{name}': mask {mask.shape} vs model {model_params[name].shape}")
+
+
+    # Dictionary-style interface
+    def __getitem__(self, name: str) -> torch.Tensor:
+        return self.mask_dict[name]
+
+    def __iter__(self):
+        return iter(self.mask_dict)
+
+    def __len__(self) -> int:
+        return len(self.mask_dict)
+
+    def keys(self):
+        return self.mask_dict.keys()
+
+    def values(self):
+        return self.mask_dict.values()
+
+    def items(self):
+        return self.mask_dict.items()
+
+    def get(self, name: str, default=None) -> torch.Tensor:
+        return self.mask_dict.get(name, default)
 
 
 # Loss function (averaged over N samples):
@@ -29,10 +156,12 @@ def compute_fisher_diagonal(
     dataloader: DataLoader,
     loss_fn: nn.Module,
     num_batches: Optional[int] = None,
+    mask: Optional[Mask] = None,
 ) -> torch.Tensor:
     """
     Approximate the diagonal of the Fisher Information Matrix (FIM) using squared gradients computed
-    over mini-batches.
+    over mini-batches. If `mask_dict` is provided, gradients of pruned parameters will be zeroed out
+    before accumulation, preserving previously frozen weights.
 
     The Fisher Information is given by the expected value of the squared gradient of the loss function:
 
@@ -79,6 +208,8 @@ def compute_fisher_diagonal(
         fisher_diag (torch.Tensor): A flattened tensor containing the Fisher diagonal estimate,
         one element per parameter.
     """
+    if mask is not None:
+        assert isinstance(mask, Mask)
 
     model.eval()
     device = get_device()
@@ -101,9 +232,12 @@ def compute_fisher_diagonal(
         # which is not equal to the average of per-sample (∇_θ ℓ_i)^2
         loss.backward()
 
-        for i, p in enumerate(model.parameters()):
+        for i, (name, p) in enumerate(model.named_parameters()):
             if p.grad is not None:
-                fisher_diag[i] += p.grad.detach() ** 2
+                grad = p.grad.detach()
+                if mask is not None and name in mask:
+                    grad = grad * mask[name]
+                fisher_diag[i] += grad ** 2
 
         total_batches += 1
 
@@ -119,7 +253,7 @@ def compute_fisher_diagonal(
 
 def create_fisher_mask(
     fisher_diag: torch.Tensor, model: nn.Module, sparsity: float = 0.9
-) -> Dict[str, torch.Tensor]:
+) -> Mask:
     """
     Create a dictionary of binary gradient masks based on Fisher importance scores.
 
@@ -132,7 +266,7 @@ def create_fisher_mask(
         sparsity (float): Fraction of total parameters that are frozen (set mask=0).
 
     Returns:
-        Dict[str, torch.Tensor]: Dictionary mapping parameter names to binary masks
+        Mask:  Dictionary mapping parameter names to binary masks
                                  with the same shape as the parameter tensors.
     """
     assert 0 < sparsity < 1, "sparsity needs to be between 0 and 1"
@@ -156,10 +290,10 @@ def create_fisher_mask(
     param_names = [name for name, _ in model.named_parameters()]
     split_masks = torch.split(flat_mask, param_sizes)
 
-    return {
+    return Mask(mask_dict={
         name: mask.view(shape)
         for name, mask, shape in zip(param_names, split_masks, param_shapes)
-    }
+    })
 
 
 # Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
@@ -219,6 +353,10 @@ def apply_mask(model: nn.Module, mask_dict: Dict[str, torch.Tensor]) -> nn.Modul
     return model_copy
 
 
+def _count_masked_parameters(mask) -> int:
+    return sum((v == 0).sum().item() for v in mask.values())
+
+
 def progressive_mask_calibration(
     model: nn.Module,
     dataloader: DataLoader,
@@ -234,7 +372,7 @@ def progressive_mask_calibration(
         "The Lottery Ticket Hypothesis: finding sparse, trainable neural networks" by Frankle and Carbin.
          https://arxiv.org/abs/1803.03635.
 
-    Note: Emits a warning if the final sparsity deviates significantly from the target.
+    Note: Raises a RuntimeError if the final sparsity deviates significantly from the target.
 
     Args:
         model (nn.Module): Model to prune.
@@ -250,45 +388,50 @@ def progressive_mask_calibration(
     model.to(device)
 
     total_params = sum(p.numel() for p in model.parameters())
-    grad_mask = {
+    grad_mask = Mask(mask_dict={
         name: torch.ones_like(param, device=device)
         for name, param in model.named_parameters()
         if param.requires_grad
-    }
+    })
 
     sparsity_targets = np.geomspace(0.1, target_sparsity, rounds)
 
-    for r, sparsity in enumerate(sparsity_targets):
-        # current_sparsity = target_sparsity * r / rounds
-        print(f"[Round {r}] Target sparsity: {sparsity}")
-        # Apply current mask to model
-        masked_model = apply_mask(model, grad_mask)
+    for r, sparsity_target in enumerate(sparsity_targets):
+        print(f"[Round {r}] Target sparsity: {sparsity_target}")
 
         # Recompute Fisher based on the masked model
-        fisher_diag = compute_fisher_diagonal(masked_model, dataloader, loss_fn)
+        fisher_diag = compute_fisher_diagonal(model, dataloader, loss_fn, mask=grad_mask)
 
+        # Count how many parameters are already frozen and how many parameters are still to mask
+        already_masked = grad_mask.num_zeroed_parameters
+        parameters_to_mask = round(total_params * sparsity_target)
+        adjusted_sparsity = (parameters_to_mask - already_masked) / total_params
+        logging.debug(f"[Round {r}]: Target Adjusted sparsity: {adjusted_sparsity}")
         # Create new mask (0 = freeze, 1 = allow update)
-        new_mask = create_fisher_mask(fisher_diag, model, sparsity=sparsity)
+        new_mask = create_fisher_mask(fisher_diag, model, sparsity=adjusted_sparsity)
+        new_sparsity = new_mask.num_zeroed_parameters
+        logging.debug(
+            f"[Round {r}] Actual Adjusted Sparsity: {new_sparsity/total_params}."
+        )
 
         # Progressive pruning.
         # Update cumulative mask (once frozen, always frozen) i.e. once a parameter has been set to zero because it's
         # important it's going to stay set to zero. If it is unimportant in the old mask (grad_mask=1) and important in the
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
-        grad_mask = {name: grad_mask[name] * new_mask[name] for name in grad_mask}
-        masked = sum((v == 0).sum().item() for v in grad_mask.values())
+        grad_mask = grad_mask.update(new_mask)
+        masked = grad_mask.num_zeroed_parameters
         print(
             f"[Round {r}] Actual Sparsity: {masked/total_params}. Masked: {masked} / {total_params}. "
         )
 
     # Final sparsity check and warning
-    masked_params = sum((v == 0).sum().item() for v in grad_mask.values())
-    actual_sparsity = masked_params / total_params
+    actual_sparsity = grad_mask.sparsity
     rel_error = abs(actual_sparsity - target_sparsity) / target_sparsity
 
     if rel_error > warn_tolerance:
-        warnings.warn(
-            f"[WARNING] Final sparsity {actual_sparsity:.4f} deviates from target {target_sparsity:.4f} "
-            f"by {rel_error:.2%} (> {warn_tolerance:.2%} relative tolerance)."
+        raise RuntimeError(
+            f"Final sparsity {actual_sparsity:.4f} deviates from target {target_sparsity:.4f} "
+            f"by {rel_error:.2%} (exceeds allowed tolerance of {warn_tolerance:.2%})."
         )
     return grad_mask
 
