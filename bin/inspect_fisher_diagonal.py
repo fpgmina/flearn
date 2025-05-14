@@ -27,7 +27,7 @@ def _plot_fisher(fisher_diag, save_path):
     plt.grid(True)
 
     # Save plot
-    plt.savefig(SAVE_PATH, dpi=300, bbox_inches="tight")
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ def run_single(
     momentum: float = 0.9,
     weight_decay: float = 5e-4,
     batch_size: int = 64,
-    keep_ratio: float = 0.1,
+    sparsity: float = 0.9,
 ) -> float:
     # fisher_diag = torch.load(fisher_path, map_location=get_device())
 
@@ -40,9 +40,7 @@ def run_single(
         model=model, dataloader=train_dataloader, loss_fn=loss_fn, num_batches=None
     )
     print("✅ Fisher diagonal computed. Shape:", fisher_diag.shape)
-    mask = create_fisher_mask(
-        fisher_diag=fisher_diag, model=model, keep_ratio=keep_ratio
-    )
+    mask = create_fisher_mask(fisher_diag=fisher_diag, model=model, sparsity=sparsity)
     # alternatively use a recursive mask function that calls within it compute_fisher_diag
     named_params = dict(model.named_parameters())
 

@@ -55,9 +55,7 @@ if __name__ == "__main__":
 
     # --- CREATE FISHER MASK ---
 
-    fisher_mask = create_fisher_mask(
-        fisher_diag=fisher_diag, model=model, keep_ratio=0.2
-    )
+    fisher_mask = create_fisher_mask(fisher_diag=fisher_diag, model=model, sparsity=0.8)
 
     # Save Fisher mask
     torch.save(fisher_mask, "fisher_mask_imagenet100.pth")
