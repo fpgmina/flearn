@@ -50,7 +50,7 @@ def optimize():
 
 def run_single(*, lr=1e-3, momentum=0.9, weight_decay=5e-4, batch_size=64):
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=batch_size)
-    model = get_dino_backbone_model()
+    model = get_dino_backbone_model(freeze_backbone=True)
     params = TrainingParams(
         training_name=f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_{weight_decay:.2f}_lr_{lr:.2f}_cosineLR",
         model=model,
