@@ -3,14 +3,13 @@ from __future__ import annotations
 import attr
 import copy
 import logging
-import warnings
 
 import numpy as np
 import torch
 from werkzeug.utils import cached_property
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 from utils.model_utils import get_device
 
 
@@ -45,7 +44,7 @@ class Mask:
         for name, tensor in self.mask_dict.items():
             if not torch.is_tensor(tensor):
                 raise TypeError(f"Mask for '{name}' is not a tensor.")
-            if not tensor.dtype in (torch.float32, torch.bool):
+            if tensor.dtype not in (torch.float32, torch.bool):
                 raise TypeError(f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}.")
             if not ((tensor == 0) | (tensor == 1)).all():
                 raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
