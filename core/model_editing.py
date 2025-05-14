@@ -153,6 +153,34 @@ class Mask:
 #
 
 
+# Notes on compute_fisher_diagonal: Why a parameter being zero does NOT imply its gradient is zero
+#
+# Consider a simple linear model: y_hat = w1 * x1 + w2 * x2 and suppose we prune w1
+# by setting it to zero: w1 = 0, w2 != 0
+#
+# In the forward pass:
+#   y_hat = w1 * x1 + w2 * x2 = w2 * x2 (i.e. w1 does not contribute anything in the forward pass!)
+#
+# In the loss function (e.g., mean squared error):
+#   L = (y - y_hat)^2
+#
+# Now, we compute the gradients using backpropagation.
+#
+# Despite w1 being zero, its gradient is:
+#   ∂L/∂w1 = ∂L/∂y * ∂y/∂w1 = 2 * (y - y_hat) * x1
+#
+# => So, the gradient of w1 is NON-ZERO even though its value is zero.
+#
+# This happens because the gradient reflects how the loss would change if w1 changed —
+# even if it's currently zero, the computation graph is still intact and tracks how
+# sensitive the loss is to it.
+#
+# => Therefore: Simply setting a parameter to zero (e.g., param *= mask) is NOT enough
+# to keep it frozen — the optimizer could still update it if its gradient is non-zero.
+# You must ALSO zero the gradient before each optimizer step (e.g., param.grad *= mask)
+# to truly "freeze" the parameter and prevent it from being updated.
+
+
 def compute_fisher_diagonal(
     model: nn.Module,
     dataloader: DataLoader,
@@ -205,6 +233,7 @@ def compute_fisher_diagonal(
         loss_fn (nn.Module): Loss function used to compute gradients.
         num_batches (Optional[int]): If set, only the first `num_batches` are used
             to estimate the Fisher information. Useful for faster computation.
+        mask (Optional[Mask]): If provided, compute gradients only for parameters that are not frozen.
 
     Returns:
         fisher_diag (torch.Tensor): A flattened tensor containing the Fisher diagonal estimate,
@@ -298,67 +327,6 @@ def create_fisher_mask(
             for name, mask, shape in zip(param_names, split_masks, param_shapes)
         }
     )
-
-
-# Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
-#
-# Consider a simple linear model: y_hat = w1 * x1 + w2 * x2 and suppose we prune w1
-# by setting it to zero: w1 = 0, w2 != 0
-#
-# In the forward pass:
-#   y_hat = w1 * x1 + w2 * x2 = w2 * x2 (i.e. w1 does not contribute anything in the forward pass!)
-#
-# In the loss function (e.g., mean squared error):
-#   L = (y - y_hat)^2
-#
-# Now, we compute the gradients using backpropagation.
-#
-# Despite w1 being zero, its gradient is:
-#   ∂L/∂w1 = ∂L/∂y * ∂y/∂w1 = 2 * (y - y_hat) * x1
-#
-# => So, the gradient of w1 is NON-ZERO even though its value is zero.
-#
-# This happens because the gradient reflects how the loss would change if w1 changed —
-# even if it's currently zero, the computation graph is still intact and tracks how
-# sensitive the loss is to it.
-#
-# => Therefore: Simply setting a parameter to zero (e.g., param *= mask) is NOT enough
-# to keep it frozen — the optimizer could still update it if its gradient is non-zero.
-# You must ALSO zero the gradient before each optimizer step (e.g., param.grad *= mask)
-# to truly "freeze" the parameter and prevent it from being updated.
-
-# -------------------------------------------------------------------------------
-# WHY ZEROING THE PARAMETER IS OFTEN "GOOD ENOUGH" for parameter sensitivity:
-#
-# In practice, even if we don’t zero the gradients explicitly, setting parameters to 0
-# often *suppresses* their gradient magnitude over time.
-#
-# 1. Zeroed parameters contribute nothing to the output during the forward pass.
-# 2. As a result, the loss becomes less sensitive to those parameters.
-# 3. This leads to smaller gradients (or zero gradients) over time.
-#
-# So although it's not guaranteed, once zeroed, parameters tend to stay small or shrink further.
-#
-# => However, if strict sparsity is required (e.g., for efficiency or compression),
-# it's safer to mask both parameter values and gradients explicitly.
-
-
-def apply_mask(model: nn.Module, mask_dict: Dict[str, torch.Tensor]) -> nn.Module:
-    """
-    Return a new model with the given binary mask applied to its parameters (zeroed out).
-    Zeroed out parameters naturally accumulate smaller Fisher scores, see comments above on apply_mask and
-    comments on progressive pruning within progressive_mask_calibration.
-    """
-    model_copy = copy.deepcopy(model).to(next(model.parameters()).device)
-    with torch.no_grad():
-        for name, param in model_copy.named_parameters():
-            if name in mask_dict:
-                param.mul_(mask_dict[name])
-    return model_copy
-
-
-def _count_masked_parameters(mask) -> int:
-    return sum((v == 0).sum().item() for v in mask.values())
 
 
 def progressive_mask_calibration(
