@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import attr
-import copy
 import logging
 
 import numpy as np
