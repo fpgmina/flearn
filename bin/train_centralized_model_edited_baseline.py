@@ -46,7 +46,7 @@ def run_single(
 
     _training_name = (
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
-        f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_{keep_ratio}"
+        f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_{sparsity}"
     )
 
     params = TrainingParams(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=5e-4)
     parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--keep_ratio", type=float, default=0.1)
+    parser.add_argument("--sparsity", type=float, default=0.9)
 
     args = parser.parse_args()
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         momentum=args.momentum,
         weight_decay=args.weight_decay,
         batch_size=args.batch_size,
-        keep_ratio=args.keep_ratio,
+        sparsity=args.sparsity,
     )
 
     print(f"✅ Best validation accuracy: {best_acc:.4f}")
