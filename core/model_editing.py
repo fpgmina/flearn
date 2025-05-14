@@ -13,8 +13,6 @@ from typing import Dict, Optional
 from utils.model_utils import get_device
 
 
-
-
 @attr.s(frozen=True)
 class Mask:
     """
@@ -39,19 +37,23 @@ class Mask:
     mask_dict: Dict[str, torch.Tensor] = attr.ib(kw_only=True)
 
     def __attrs_post_init__(self):
-        assert isinstance(self.mask_dict, dict), f"mask must be of type: Dict[str, torch.Tensor] and not of type:{type(self.mask_dict)}"
+        assert isinstance(
+            self.mask_dict, dict
+        ), f"mask must be of type: Dict[str, torch.Tensor] and not of type:{type(self.mask_dict)}"
         # Validation: all masks must be binary (0 or 1), float or bool, and on the same device
         for name, tensor in self.mask_dict.items():
             if not torch.is_tensor(tensor):
                 raise TypeError(f"Mask for '{name}' is not a tensor.")
             if tensor.dtype not in (torch.float32, torch.bool):
-                raise TypeError(f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}.")
+                raise TypeError(
+                    f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}."
+                )
             if not ((tensor == 0) | (tensor == 1)).all():
                 raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
 
     @cached_property
     def num_total_parameters(self) -> int:
-       return sum(t.numel() for t in self.mask_dict.values())
+        return sum(t.numel() for t in self.mask_dict.values())
 
     @cached_property
     def num_zeroed_parameters(self) -> int:
@@ -64,7 +66,6 @@ class Mask:
         """
         return self.num_zeroed_parameters / self.num_total_parameters
 
-
     @property
     def per_layer_sparsity(self) -> Dict[str, float]:
         return {
@@ -72,14 +73,17 @@ class Mask:
             for name, mask in self.mask_dict.items()
         }
 
-
     def update(self, other: Mask) -> Mask:
         """
         Return new MaskDict with parameters frozen if frozen in either mask (logical AND on 1s).
         """
         assert isinstance(other, Mask)
         return Mask(
-            mask_dict={k: self.mask_dict[k] * other.mask_dict[k] for k in self.mask_dict if k in other.mask_dict}
+            mask_dict={
+                k: self.mask_dict[k] * other.mask_dict[k]
+                for k in self.mask_dict
+                if k in other.mask_dict
+            }
         )
 
     def to(self, device: torch.device) -> Mask:
@@ -87,7 +91,6 @@ class Mask:
         Move all mask tensors to specified device.
         """
         return Mask(mask_dict={k: v.to(device) for k, v in self.mask_dict.items()})
-
 
     def state_dict(self) -> Dict[str, torch.Tensor]:
         """
@@ -99,7 +102,6 @@ class Mask:
     def load_state_dict(cls, state: Dict[str, torch.Tensor]) -> Mask:
         return cls(mask_dict=state)
 
-
     def validate_against(self, model: torch.nn.Module) -> None:
         """
         Ensure that the mask keys match model parameter names, and shapes match.
@@ -109,8 +111,9 @@ class Mask:
             if name not in model_params:
                 raise KeyError(f"Mask key '{name}' not found in model parameters.")
             if mask.shape != model_params[name].shape:
-                raise ValueError(f"Shape mismatch for '{name}': mask {mask.shape} vs model {model_params[name].shape}")
-
+                raise ValueError(
+                    f"Shape mismatch for '{name}': mask {mask.shape} vs model {model_params[name].shape}"
+                )
 
     # Dictionary-style interface
     def __getitem__(self, name: str) -> torch.Tensor:
@@ -236,7 +239,7 @@ def compute_fisher_diagonal(
                 grad = p.grad.detach()
                 if mask is not None and name in mask:
                     grad = grad * mask[name]
-                fisher_diag[i] += grad ** 2
+                fisher_diag[i] += grad**2
 
         total_batches += 1
 
@@ -289,10 +292,12 @@ def create_fisher_mask(
     param_names = [name for name, _ in model.named_parameters()]
     split_masks = torch.split(flat_mask, param_sizes)
 
-    return Mask(mask_dict={
-        name: mask.view(shape)
-        for name, mask, shape in zip(param_names, split_masks, param_shapes)
-    })
+    return Mask(
+        mask_dict={
+            name: mask.view(shape)
+            for name, mask, shape in zip(param_names, split_masks, param_shapes)
+        }
+    )
 
 
 # Notes on apply_mask: Why a parameter being zero does NOT imply its gradient is zero
@@ -387,11 +392,13 @@ def progressive_mask_calibration(
     model.to(device)
 
     total_params = sum(p.numel() for p in model.parameters())
-    grad_mask = Mask(mask_dict={
-        name: torch.ones_like(param, device=device)
-        for name, param in model.named_parameters()
-        if param.requires_grad
-    })
+    grad_mask = Mask(
+        mask_dict={
+            name: torch.ones_like(param, device=device)
+            for name, param in model.named_parameters()
+            if param.requires_grad
+        }
+    )
 
     sparsity_targets = np.geomspace(0.1, target_sparsity, rounds)
 
@@ -399,7 +406,9 @@ def progressive_mask_calibration(
         print(f"[Round {r}] Target sparsity: {sparsity_target}")
 
         # Recompute Fisher based on the masked model
-        fisher_diag = compute_fisher_diagonal(model, dataloader, loss_fn, mask=grad_mask)
+        fisher_diag = compute_fisher_diagonal(
+            model, dataloader, loss_fn, mask=grad_mask
+        )
 
         # Count how many parameters are already frozen and how many parameters are still to mask
         already_masked = grad_mask.num_zeroed_parameters
