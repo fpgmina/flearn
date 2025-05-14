@@ -276,7 +276,9 @@ def progressive_mask_calibration(
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
         grad_mask = {name: grad_mask[name] * new_mask[name] for name in grad_mask}
         masked = sum((v == 0).sum().item() for v in grad_mask.values())
-        print(f"[Round {r}] Actual Sparsity: {masked/total_params}. Masked: {masked} / {total_params}. ")
+        print(
+            f"[Round {r}] Actual Sparsity: {masked/total_params}. Masked: {masked} / {total_params}. "
+        )
 
     # Final sparsity check and warning
     masked_params = sum((v == 0).sum().item() for v in grad_mask.values())
