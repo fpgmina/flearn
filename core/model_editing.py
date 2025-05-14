@@ -137,7 +137,7 @@ def create_fisher_mask(
     """
     assert 0 < sparsity < 1, "sparsity needs to be between 0 and 1"
 
-    k = int(len(fisher_diag) * sparsity)
+    k = round(len(fisher_diag) * sparsity)
 
     # Default: all parameters allowed to update
     flat_mask = torch.ones_like(fisher_diag)
@@ -244,6 +244,8 @@ def progressive_mask_calibration(
         rounds (int): Number of pruning rounds.
         warn_tolerance (float): Relative deviation tolerance to trigger a warning.
     """
+    assert isinstance(rounds, int)
+    assert rounds > 1, "rounds needs to be greater than 1"
     device = get_device()
     model.to(device)
 
@@ -258,7 +260,7 @@ def progressive_mask_calibration(
 
     for r, sparsity in enumerate(sparsity_targets):
         # current_sparsity = target_sparsity * r / rounds
-        print(f"Current sparsity in round {r}: {sparsity}")
+        print(f"[Round {r}] Target sparsity: {sparsity}")
         # Apply current mask to model
         masked_model = apply_mask(model, grad_mask)
 
@@ -267,7 +269,6 @@ def progressive_mask_calibration(
 
         # Create new mask (0 = freeze, 1 = allow update)
         new_mask = create_fisher_mask(fisher_diag, model, sparsity=sparsity)
-        print(f"zeros in mask: {sum((v==0).sum().item() for v in new_mask.values())}")
 
         # Progressive pruning.
         # Update cumulative mask (once frozen, always frozen) i.e. once a parameter has been set to zero because it's
@@ -275,7 +276,7 @@ def progressive_mask_calibration(
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
         grad_mask = {name: grad_mask[name] * new_mask[name] for name in grad_mask}
         masked = sum((v == 0).sum().item() for v in grad_mask.values())
-        print(f"[Round {r}] Masked: {masked} / {total_params}")
+        print(f"[Round {r}] Actual Sparsity: {masked/total_params}. Masked: {masked} / {total_params}. ")
 
     # Final sparsity check and warning
     masked_params = sum((v == 0).sum().item() for v in grad_mask.values())

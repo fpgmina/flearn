@@ -29,7 +29,7 @@ def test_compute_fisher_diagonal(tiny_cnn):
     assert (fisher_diag >= 0).all(), "Fisher scores must be non-negative"
 
 
-@pytest.mark.parametrize("sparsity", [0.2, 0.4, 0.96])
+@pytest.mark.parametrize("sparsity", [0.2, 0.4, 0.6, 0.7, 0.85, 0.9])
 def test_create_fisher_mask_shapes_and_counts(tiny_mlp, sparsity):
     model = tiny_mlp
     total_params = sum(p.numel() for p in model.parameters())
@@ -50,7 +50,7 @@ def test_create_fisher_mask_shapes_and_counts(tiny_mlp, sparsity):
 
     # 3. Check total number of ones in all masks equals expected count
     total_ones = sum(mask.sum().item() for mask in masks.values())
-    expected_ones = int(total_params * (1 - sparsity))
+    expected_ones = total_params - round(total_params * sparsity)
     assert (
         total_ones == expected_ones
     ), f"Expected {expected_ones} ones, got {total_ones}"
@@ -101,7 +101,7 @@ def test_progressive_mask_calibration(tiny_mlp, dummy_dataloader, target_sparsit
             dataloader=dataloader,
             loss_fn=loss_fn,
             target_sparsity=target_sparsity,
-            rounds=5,
+            rounds=10,
             warn_tolerance=0.01,
         )
     total_params = sum(p.numel() for p in model.parameters())
