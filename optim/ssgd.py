@@ -2,6 +2,8 @@ import torch
 from torch.optim import SGD
 from typing import Dict, Iterable
 
+from core.model_editing import Mask
+
 
 class SparseSGDM(SGD):
     """
@@ -21,7 +23,7 @@ class SparseSGDM(SGD):
         nesterov (bool): Enables Nesterov momentum.
         named_params (Dict[str, torch.nn.Parameter]): Dictionary mapping parameter names
             to their corresponding tensors. Used to match parameters to their gradient masks.
-        grad_mask (Dict[str, torch.Tensor]): Dictionary mapping parameter names to binary masks
+        grad_mask (Mask): Mask object mapping parameter names to binary masks
             of the same shape. A value of 1 allows gradient updates; 0 freezes the parameter.
 
     Note on parameter freezing: During each call to .step(), it multiplies the gradient of each parameter by the mask,
@@ -47,7 +49,7 @@ class SparseSGDM(SGD):
         weight_decay: float = 0.0,
         nesterov: bool = False,
         *,
-        grad_mask: Dict[str, torch.Tensor],
+        grad_mask: Mask,
         named_params: Dict[str, torch.nn.Parameter],
     ):
 

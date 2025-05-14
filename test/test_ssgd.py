@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from core.model_editing import create_fisher_mask
+from core.model_editing import create_fisher_mask, Mask
 from optim.ssgd import SparseSGDM
 
 
@@ -114,7 +114,9 @@ def test_sparse_sgdm_respects_mask_in_parameter_updates(tiny_mlp):
 def test_sparse_sgdm_init_success(tiny_mlp):
     model = tiny_mlp
     named_params = dict(model.named_parameters())
-    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
+    grad_mask = Mask(
+        mask_dict={name: torch.ones_like(param) for name, param in named_params.items()}
+    )
 
     optimizer = SparseSGDM(
         params=model.parameters(),
@@ -133,9 +135,14 @@ def test_sparse_sgdm_init_grad_mask_mismatch(tiny_mlp):
 
     named_params = dict(model.named_parameters())
     # Corrupt the grad_mask by removing one key
-    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
-    grad_mask.pop(next(iter(grad_mask)))
+    all_keys = list(named_params.keys())
+    corrupted_keys = all_keys[1:]  # exclude the first key
 
+    corrupted_mask_dict = {
+        name: torch.ones_like(named_params[name]) for name in corrupted_keys
+    }
+
+    grad_mask = Mask(mask_dict=corrupted_mask_dict)
     with pytest.raises(
         AssertionError, match="Mismatch between model parameters and gradient mask keys"
     ):
@@ -151,7 +158,9 @@ def test_sparse_sgdm_init_params_named_params_mismatch(tiny_mlp):
     model = tiny_mlp
 
     named_params = dict(model.named_parameters())
-    grad_mask = {name: torch.ones_like(param) for name, param in named_params.items()}
+    grad_mask = Mask(
+        mask_dict={name: torch.ones_like(param) for name, param in named_params.items()}
+    )
 
     # Break the param list: remove one parameter
     broken_params = list(model.parameters())[1:]

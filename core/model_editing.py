@@ -103,15 +103,32 @@ class Mask:
 
     def validate_against(self, model: torch.nn.Module) -> None:
         """
-        Ensure that the mask keys match model parameter names, and shapes match.
+        Validates that:
+          - All parameter names in the model exactly match those in the mask.
+          - All mask shapes match model parameter shapes.
+          - The parameters from model.parameters() and model.named_parameters().values() are consistent.
+
+        Raises:
+            AssertionError if any of the above conditions fail.
         """
-        model_params = dict(model.named_parameters())
-        for name, mask in self.mask_dict.items():
-            if name not in model_params:
-                raise KeyError(f"Mask key '{name}' not found in model parameters.")
-            if mask.shape != model_params[name].shape:
+        named_params = dict(model.named_parameters())
+        model_param_names = set(named_params.keys())
+        mask_param_names = set(self.mask_dict.keys())
+
+        # Check key match
+        assert model_param_names == mask_param_names, (
+            f"Mismatch between model parameters and mask keys.\n"
+            f"Missing in mask: {model_param_names - mask_param_names}\n"
+            f"Extra in mask: {mask_param_names - model_param_names}"
+        )
+
+        # Check shape match
+        for name in model_param_names:
+            model_shape = named_params[name].shape
+            mask_shape = self.mask_dict[name].shape
+            if model_shape != mask_shape:
                 raise ValueError(
-                    f"Shape mismatch for '{name}': mask {mask.shape} vs model {model_params[name].shape}"
+                    f"Shape mismatch for '{name}': mask shape {mask_shape}, model shape {model_shape}"
                 )
 
     # Dictionary-style interface
