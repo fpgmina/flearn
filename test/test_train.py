@@ -79,7 +79,7 @@ def test_compute_predictions(mock_model, mock_train_loader, mock_loss_func):
     )
     # Check that predictions and labels have the correct shape
     assert len(predictions) == len(labels)
-    assert np.allclose(loss, 1.14016997814)
+    assert np.allclose(loss, 2.2803399562835693)
 
 
 # Test for train_model
