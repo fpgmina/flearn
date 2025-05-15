@@ -64,16 +64,8 @@ class SparseSGDM(SGD):
             weight_decay=weight_decay,
             nesterov=nesterov,
         )
-
-        # check that named_params and grad_mask have the same keys
-        model_param_names = set(named_params.keys())
-        grad_mask_names = set(grad_mask.keys())
-        assert model_param_names == grad_mask_names, (
-            f"Mismatch between model parameters and gradient mask keys.\n"
-            f"Missing in grad_mask: {model_param_names - grad_mask_names}\n"
-            f"Extra in grad_mask: {grad_mask_names - model_param_names}"
-        )
-
+        # check that the mask and the parameters have the same shape, are on the same device etc
+        grad_mask.validate_against(named_params)
         # check that params and named_params.values() have the same items
         assert len(param_list) == len(
             named_param_list
@@ -96,11 +88,6 @@ class SparseSGDM(SGD):
                 # Applying the gradient mask only if that name is in the mask
                 name = self.param_id_to_name.get(id(param))
                 if param.grad is not None and name in self.grad_mask:
-                    if param.grad.shape != self.grad_mask[name].shape:
-                        raise ValueError(
-                            f"Gradient shape {param.grad.shape} does not match mask shape {self.grad_mask[name].shape} "
-                            f"for parameter '{name}'"
-                        )
                     param.grad.data *= self.grad_mask[name]
 
         return super().step(closure)

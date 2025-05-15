@@ -8,6 +8,7 @@ from core.train_params import TrainingParams
 from dataset.cifar_100 import get_cifar_dataloaders
 from models.dino_backbone import get_dino_backbone_model
 from optim.ssgd import SparseSGDM
+from utils.model_utils import get_device
 
 
 def run_single(
@@ -48,6 +49,10 @@ def run_single(
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
         f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_{sparsity}"
     )
+
+    device = get_device()
+    model.to(device)
+    mask.to(device)
 
     params = TrainingParams(
         training_name=_training_name,

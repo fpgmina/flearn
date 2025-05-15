@@ -39,7 +39,9 @@ class Mask:
         assert isinstance(
             self.mask_dict, dict
         ), f"mask must be of type: Dict[str, torch.Tensor] and not of type:{type(self.mask_dict)}"
+
         # Validation: all masks must be binary (0 or 1), float or bool, and on the same device
+        devices = set()
         for name, tensor in self.mask_dict.items():
             if not torch.is_tensor(tensor):
                 raise TypeError(f"Mask for '{name}' is not a tensor.")
@@ -49,6 +51,17 @@ class Mask:
                 )
             if not ((tensor == 0) | (tensor == 1)).all():
                 raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
+            devices.add(tensor.device)
+
+        if len(devices) > 1:
+            raise ValueError(
+                f"All mask tensors must be on the same device. Found: {devices}"
+            )
+
+    @property
+    def device(self) -> torch.device:
+        # device of the first mask tensor (already checked they all are on the same device)
+        return next(iter(self.mask_dict.values())).device
 
     @cached_property
     def num_total_parameters(self) -> int:
@@ -92,26 +105,25 @@ class Mask:
         return Mask(mask_dict={k: v.to(device) for k, v in self.mask_dict.items()})
 
     def state_dict(self) -> Dict[str, torch.Tensor]:
-        """
-        Saveable version of the mask dictionary.
-        """
+        # saveable version of the mask dictionary.
         return self.mask_dict
 
     @classmethod
     def load_state_dict(cls, state: Dict[str, torch.Tensor]) -> Mask:
         return cls(mask_dict=state)
 
-    def validate_against(self, model: torch.nn.Module) -> None:
+    def validate_against(self, named_params: Dict[str, torch.Tensor]) -> None:
         """
-        Validates that:
+        Validate mask against model parameters.
+        Check that:
           - All parameter names in the model exactly match those in the mask.
           - All mask shapes match model parameter shapes.
-          - The parameters from model.parameters() and model.named_parameters().values() are consistent.
+          - The model parameters and the mask tensors are on the same device.
 
         Raises:
-            AssertionError if any of the above conditions fail.
+            AssertionError/ValueError if any of the above conditions fail.
         """
-        named_params = dict(model.named_parameters())
+
         model_param_names = set(named_params.keys())
         mask_param_names = set(self.mask_dict.keys())
 
@@ -130,6 +142,15 @@ class Mask:
                 raise ValueError(
                     f"Shape mismatch for '{name}': mask shape {mask_shape}, model shape {model_shape}"
                 )
+
+        param_device = next(p.device for p in named_params.values() if p.requires_grad)
+
+        # Check mask is on the same device as the model
+        if self.device != param_device:
+            raise ValueError(
+                f"Device mismatch: model parameters on {param_device}, "
+                f"mask on {self.device}. Please call `mask.to({param_device})` before passing it in."
+            )
 
     # Dictionary-style interface
     def __getitem__(self, name: str) -> torch.Tensor:
@@ -261,6 +282,8 @@ def compute_fisher_diagonal(
     model.eval()
     device = get_device()
     model.to(device)
+    if mask is not None:
+        mask.to(device)
 
     fisher_diag = [torch.zeros_like(p, device=device) for p in model.parameters()]
     total_batches = 0

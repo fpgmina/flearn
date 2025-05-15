@@ -144,7 +144,8 @@ def test_sparse_sgdm_init_grad_mask_mismatch(tiny_mlp):
 
     grad_mask = Mask(mask_dict=corrupted_mask_dict)
     with pytest.raises(
-        AssertionError, match="Mismatch between model parameters and gradient mask keys"
+        AssertionError,
+        match="Mismatch between model parameters and mask keys.\nMissing in mask: {'net.0.weight'}\nExtra in mask: set()",
     ):
         _ = SparseSGDM(
             params=model.parameters(),
