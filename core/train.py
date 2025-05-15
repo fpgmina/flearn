@@ -54,7 +54,9 @@ def _train(
     if scheduler is not None:
         scheduler.step()
 
-    train_loss = running_loss / len(train_loader)  #NB len(train_loader) is the total number of batches
+    train_loss = running_loss / len(
+        train_loader
+    )  # NB len(train_loader) is the total number of batches
     train_accuracy = 100.0 * correct / total
 
     return train_loss, train_accuracy
