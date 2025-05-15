@@ -222,8 +222,12 @@ def train_model(
                 best_acc = val_accuracy
                 if wandb_save:
                     model_name = f"{training_params.training_name}_best.pth"
-                    torch.save(model.state_dict(), model_name)
-                    wandb.save(model_name)
+                    torch.save(model.state_dict(), model_name)  # local save
+                    artifact = wandb.Artifact(
+                        name=f"{training_params.training_name}", type="model"
+                    )
+                    artifact.add_file(model_name)
+                    wandb.log_artifact(artifact)
 
     if use_wandb:
         wandb.finish()
