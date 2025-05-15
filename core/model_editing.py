@@ -8,7 +8,7 @@ import torch
 from werkzeug.utils import cached_property
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, Iterable, Tuple
 from utils.model_utils import get_device
 
 
@@ -112,9 +112,14 @@ class Mask:
     def load_state_dict(cls, state: Dict[str, torch.Tensor]) -> Mask:
         return cls(mask_dict=state)
 
-    def validate_against(self, named_params: Dict[str, torch.Tensor]) -> None:
+    def validate_against(
+        self,
+        named_params: Union[
+            Iterable[Tuple[str, nn.Parameter]], Dict[str, nn.Parameter]
+        ],
+    ) -> None:
         """
-        Validate mask against model parameters.
+        Validate mask against model.named_parameters().
         Check that:
           - All parameter names in the model exactly match those in the mask.
           - All mask shapes match model parameter shapes.
@@ -123,6 +128,8 @@ class Mask:
         Raises:
             AssertionError/ValueError if any of the above conditions fail.
         """
+        if not isinstance(named_params, dict):
+            named_params = dict(named_params)
 
         model_param_names = set(named_params.keys())
         mask_param_names = set(self.mask_dict.keys())
@@ -284,6 +291,7 @@ def compute_fisher_diagonal(
     model.to(device)
     if mask is not None:
         mask.to(device)
+        mask.validate_against(model.named_parameters())
 
     fisher_diag = [torch.zeros_like(p, device=device) for p in model.parameters()]
     total_batches = 0
