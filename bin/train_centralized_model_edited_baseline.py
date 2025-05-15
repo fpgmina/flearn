@@ -1,8 +1,9 @@
 import argparse
+
 import torch
 from torch import nn
 
-from core.model_editing import create_fisher_mask, compute_fisher_diagonal
+from core.model_editing import Mask
 from core.train import train_model
 from core.train_params import TrainingParams
 from dataset.cifar_100 import get_cifar_dataloaders
@@ -55,18 +56,15 @@ def run_single(
     # thus it should encode shared structure in the gradients); we can therefore simplify this logic and compute directly
     # the mask on CIFAR100
 
+    mask_path = "/content/drive/MyDrive/progressive_fisher_mask_90.pth"
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=batch_size)
     loss_fn = nn.CrossEntropyLoss()
     # Load model with editable backbone and modified head to fit on CIFAR100
     model = get_dino_backbone_model(freeze_backbone=False)
-    print("⏳ Computing Fisher diagonal...")
-    fisher_diag = compute_fisher_diagonal(
-        model=model, dataloader=train_dataloader, loss_fn=loss_fn, num_batches=None
-    )
-    print("✅ Fisher diagonal computed. Shape:", fisher_diag.shape)
-    mask = create_fisher_mask(fisher_diag=fisher_diag, model=model, sparsity=sparsity)
-    # alternatively use a recursive mask function that calls within it compute_fisher_diag
+    mask = Mask.load_state_dict(torch.load(mask_path))
+
     named_params = dict(model.named_parameters())
+    mask.validate_against(named_params)
 
     _training_name = (
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
@@ -93,7 +91,7 @@ def run_single(
         },
         scheduler_params={"T_max": 20},
     )
-    print("⏳ Train Model...")
+    print("Train Model...")
     res_dict = train_model(
         training_params=params,
         train_loader=train_dataloader,
@@ -105,22 +103,22 @@ def run_single(
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    #
-    # parser.add_argument("--lr", type=float, default=1e-3)
-    # parser.add_argument("--momentum", type=float, default=0.9)
-    # parser.add_argument("--weight_decay", type=float, default=5e-4)
-    # parser.add_argument("--batch_size", type=int, default=64)
-    # parser.add_argument("--sparsity", type=float, default=0.9)
-    #
-    # args = parser.parse_args()
-    #
-    # best_acc = run_single(
-    #     lr=args.lr,
-    #     momentum=args.momentum,
-    #     weight_decay=args.weight_decay,
-    #     batch_size=args.batch_size,
-    #     sparsity=args.sparsity,
-    # )
+    parser = argparse.ArgumentParser()
 
-    warmup_train_head()
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--weight_decay", type=float, default=5e-4)
+    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--sparsity", type=float, default=0.9)
+
+    args = parser.parse_args()
+
+    best_acc = run_single(
+        lr=args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+        batch_size=args.batch_size,
+        sparsity=args.sparsity,
+    )
+
+    # warmup_train_head()
