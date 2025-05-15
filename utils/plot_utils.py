@@ -196,4 +196,4 @@ if __name__ == "__main__":
 
     plot_wandb_metrics(args.wandb_path, args.save_path)
 
-# python utils/plot_utils.py "francesco-mina-fpgm/centralized_model_edited_baseline/runs/yudwul00"
+# python utils/plot_utils.py "francesco-mina-fpgm/centralized_baseline/runs/ho4h2mic"
