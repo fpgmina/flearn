@@ -11,6 +11,29 @@ from optim.ssgd import SparseSGDM
 from utils.model_utils import get_device
 
 
+def warmup_train_head(*, lr=1e-3, momentum=0.9, weight_decay=5e-4, batch_size=64):
+    train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=batch_size)
+    model = get_dino_backbone_model(freeze_backbone=True)
+    params = TrainingParams(
+        training_name=f"warmup_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_{weight_decay:.2f}_lr_{lr:.2f}_cosineLR",
+        model=model,
+        loss_function=nn.CrossEntropyLoss(),
+        learning_rate=lr,
+        optimizer_class=torch.optim.SGD,  # type: ignore
+        scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
+        epochs=2,
+        optimizer_params={"momentum": momentum, "weight_decay": weight_decay},
+        scheduler_params={"T_max": 20},
+    )
+    res_dict = train_model(
+        training_params=params,
+        train_loader=train_dataloader,
+        val_loader=val_dataloader,
+        project_name="warmup_train_head",
+    )
+    return res_dict["best_accuracy"]
+
+
 def run_single(
     *,
     lr: float = 1e-3,
@@ -82,22 +105,22 @@ def run_single(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    # parser = argparse.ArgumentParser()
+    #
+    # parser.add_argument("--lr", type=float, default=1e-3)
+    # parser.add_argument("--momentum", type=float, default=0.9)
+    # parser.add_argument("--weight_decay", type=float, default=5e-4)
+    # parser.add_argument("--batch_size", type=int, default=64)
+    # parser.add_argument("--sparsity", type=float, default=0.9)
+    #
+    # args = parser.parse_args()
+    #
+    # best_acc = run_single(
+    #     lr=args.lr,
+    #     momentum=args.momentum,
+    #     weight_decay=args.weight_decay,
+    #     batch_size=args.batch_size,
+    #     sparsity=args.sparsity,
+    # )
 
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--weight_decay", type=float, default=5e-4)
-    parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--sparsity", type=float, default=0.9)
-
-    args = parser.parse_args()
-
-    best_acc = run_single(
-        lr=args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay,
-        batch_size=args.batch_size,
-        sparsity=args.sparsity,
-    )
-
-    print(f"✅ Best validation accuracy: {best_acc:.4f}")
+    warmup_train_head()
