@@ -1,6 +1,8 @@
-import matplotlib.pyplot as plt
+import argparse
 from pathlib import Path
-
+import wandb
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from typing import Optional
 from math import ceil
@@ -135,3 +137,51 @@ def _plot_fisher(fisher_diag, save_path):
 
     # Save plot
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
+
+
+
+def plot_wandb_metrics(wandb_path: str, save_path: Path):
+    api = wandb.Api()
+    #     # "francesco-mina-fpgm/centralized_model_edited_baseline/runs/yudwul00"
+    run = api.run(wandb_path)
+    df = run.history()
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+
+    # Plot Accuracy
+    sns.lineplot(ax=axes[0], x=df['_step'],y=df['Train Accuracy'], label='Train Accuracy')
+    sns.lineplot(ax=axes[0], x=df['_step'],y=df['Validation Accuracy'], label='Validation Accuracy')
+    axes[0].set_title("Training vs Validation Accuracy")
+    axes[0].set_xlabel("Step")
+    axes[0].set_ylabel("Accuracy")
+    axes[0].legend()
+    axes[0].grid(True)
+
+    # Plot Loss
+    sns.lineplot(ax=axes[1], x=df['_step'], y=df['Train Loss'], label='Train Loss')
+    sns.lineplot(ax=axes[1], x=df['_step'], y=df['Validation Loss'], label='Validation Loss')
+    axes[1].set_title("Training vs Validation Loss")
+    axes[1].set_xlabel("Step")
+    axes[1].set_ylabel("Loss")
+    axes[1].legend()
+    axes[1].grid(True)
+
+    plt.tight_layout()
+    save_path = save_path.with_suffix(".png")
+    plt.savefig(save_path)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Plot W&B run metrics and save as image.")
+    parser.add_argument("wandb_path", type=str, help="Full W&B run path: username/project/run_id")
+    parser.add_argument(
+        "--save_path",
+        type=Path,
+        default=Path.cwd() / "wandb_plot.png",
+        help="Path to save the figure (default: ./wandb_plot.png)"
+    )
+    args = parser.parse_args()
+
+    plot_wandb_metrics(args.wandb_path, args.save_path)
+
+# python utils/plot_utils.py "francesco-mina-fpgm/centralized_model_edited_baseline/runs/yudwul00"
