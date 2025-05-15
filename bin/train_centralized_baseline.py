@@ -66,7 +66,7 @@ def run_single(*, lr=1e-3, momentum=0.9, weight_decay=5e-4, batch_size=64):
         training_params=params,
         train_loader=train_dataloader,
         val_loader=val_dataloader,
-        project_name="fl_centralized_baseline",
+        project_name="centralized_baseline",
     )
     return res_dict["best_accuracy"]
 
