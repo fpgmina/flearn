@@ -41,7 +41,6 @@ def run_single(
     momentum: float = 0.9,
     weight_decay: float = 5e-4,
     batch_size: int = 64,
-    sparsity: float = 0.9,
 ) -> float:
     # fisher_diag = torch.load(fisher_path, map_location=get_device())
 
@@ -68,7 +67,7 @@ def run_single(
 
     _training_name = (
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
-        f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_{sparsity}"
+        f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_90"
     )
 
     device = get_device()
@@ -96,7 +95,7 @@ def run_single(
         training_params=params,
         train_loader=train_dataloader,
         val_loader=val_dataloader,
-        project_name="fl_centralized_model_edited_baseline",
+        project_name="centralized_model_edited_baseline",
     )
     best_acc = res_dict["best_accuracy"]
     return best_acc
@@ -109,7 +108,6 @@ if __name__ == "__main__":
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight_decay", type=float, default=5e-4)
     parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--sparsity", type=float, default=0.9)
 
     args = parser.parse_args()
 
@@ -118,7 +116,6 @@ if __name__ == "__main__":
         momentum=args.momentum,
         weight_decay=args.weight_decay,
         batch_size=args.batch_size,
-        sparsity=args.sparsity,
     )
 
     # warmup_train_head()
