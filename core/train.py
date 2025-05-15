@@ -46,7 +46,7 @@ def _train(
         loss.backward()
         optimizer.step()
 
-        running_loss += loss.item()
+        running_loss += loss.item()  # loss.item is average loss per batch
         _, predicted = preds.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
@@ -54,7 +54,7 @@ def _train(
     if scheduler is not None:
         scheduler.step()
 
-    train_loss = running_loss / len(train_loader)
+    train_loss = running_loss / len(train_loader)  #NB len(train_loader) is the total number of batches
     train_accuracy = 100.0 * correct / total
 
     return train_loss, train_accuracy
@@ -113,7 +113,7 @@ def compute_predictions(
 
     correct = (predictions == labels).sum().item()
     accuracy = 100.0 * correct / len(labels)
-    loss = loss / len(labels)
+    loss = loss / len(dataloader)
 
     return predictions, labels, loss, accuracy
 
