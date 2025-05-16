@@ -139,7 +139,12 @@ def _plot_fisher(fisher_diag, save_path):
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = None, is_federated: bool = False):
+def plot_wandb_metrics(
+    wandb_path: str,
+    save_path: Path,
+    title: Optional[str] = None,
+    is_federated: bool = False,
+):
     api = wandb.Api()
     run = api.run(wandb_path)
     df = run.history()
@@ -165,9 +170,14 @@ def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = 
     axes[0].grid(True)
 
     # Plot Loss
-    sns.lineplot(ax=axes[1], x=df[epoch_or_round], y=df["Train Loss"], label="Train Loss")
     sns.lineplot(
-        ax=axes[1], x=df[epoch_or_round], y=df["Validation Loss"], label="Validation Loss"
+        ax=axes[1], x=df[epoch_or_round], y=df["Train Loss"], label="Train Loss"
+    )
+    sns.lineplot(
+        ax=axes[1],
+        x=df[epoch_or_round],
+        y=df["Validation Loss"],
+        label="Validation Loss",
     )
     axes[1].set_title("Training vs Validation Loss")
     axes[1].set_xlabel(epoch_or_round)
@@ -196,7 +206,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--title", type=str, default=None, help="Title for the overall figure"
     )
-    parser.add_argument("--is_federated", type=bool, default=False, help="Whether the wandb run uses Federated Averaging")
+    parser.add_argument(
+        "--is_federated",
+        type=bool,
+        default=False,
+        help="Whether the wandb run uses Federated Averaging",
+    )
     args = parser.parse_args()
 
     plot_wandb_metrics(args.wandb_path, args.save_path, args.title, args.is_federated)
