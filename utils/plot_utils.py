@@ -139,36 +139,38 @@ def _plot_fisher(fisher_diag, save_path):
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
 
 
-def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = None):
+def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = None, is_federated: bool = False):
     api = wandb.Api()
     run = api.run(wandb_path)
     df = run.history()
 
     fig, axes = plt.subplots(2, 1, figsize=(14, 10))
 
+    epoch_or_round = "Round" if is_federated else "Epoch"
+
     # Plot Accuracy
     sns.lineplot(
-        ax=axes[0], x=df["Epoch"], y=df["Train Accuracy"], label="Train Accuracy"
+        ax=axes[0], x=df[epoch_or_round], y=df["Train Accuracy"], label="Train Accuracy"
     )
     sns.lineplot(
         ax=axes[0],
-        x=df["Epoch"],
+        x=df[epoch_or_round],
         y=df["Validation Accuracy"],
         label="Validation Accuracy",
     )
     axes[0].set_title("Training vs Validation Accuracy")
-    axes[0].set_xlabel("Epoch")
+    axes[0].set_xlabel(epoch_or_round)
     axes[0].set_ylabel("Accuracy")
     axes[0].legend()
     axes[0].grid(True)
 
     # Plot Loss
-    sns.lineplot(ax=axes[1], x=df["Epoch"], y=df["Train Loss"], label="Train Loss")
+    sns.lineplot(ax=axes[1], x=df[epoch_or_round], y=df["Train Loss"], label="Train Loss")
     sns.lineplot(
-        ax=axes[1], x=df["Epoch"], y=df["Validation Loss"], label="Validation Loss"
+        ax=axes[1], x=df[epoch_or_round], y=df["Validation Loss"], label="Validation Loss"
     )
     axes[1].set_title("Training vs Validation Loss")
-    axes[1].set_xlabel("Epoch")
+    axes[1].set_xlabel(epoch_or_round)
     axes[1].set_ylabel("Loss")
     axes[1].legend()
     axes[1].grid(True)
@@ -189,13 +191,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_path",
         type=Path,
-        default=Path.cwd() / "centralized_baseline_wandb_plot.png",
+        default=Path.cwd() / "federated_iid_wandb_plot.png",
     )
     parser.add_argument(
         "--title", type=str, default=None, help="Title for the overall figure"
     )
+    parser.add_argument("--is_federated", type=bool, default=False, help="Whether the wandb run uses Federated Averaging")
     args = parser.parse_args()
 
-    plot_wandb_metrics(args.wandb_path, args.save_path, args.title)
+    plot_wandb_metrics(args.wandb_path, args.save_path, args.title, args.is_federated)
 
 # python utils/plot_utils.py "francesco-mina-fpgm/centralized_baseline/runs/ho4h2mic" --title "CENTRALIZED BASELINE"
+# python utils/plot_utils.py francesco-mina-fpgm/fl/runs/e7bt2wc0 --title "FEDERATED IID" --is_federated True
