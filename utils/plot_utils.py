@@ -151,7 +151,10 @@ def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = 
         ax=axes[0], x=df["Epoch"], y=df["Train Accuracy"], label="Train Accuracy"
     )
     sns.lineplot(
-        ax=axes[0], x=df["Epoch"], y=df["Validation Accuracy"], label="Validation Accuracy"
+        ax=axes[0],
+        x=df["Epoch"],
+        y=df["Validation Accuracy"],
+        label="Validation Accuracy",
     )
     axes[0].set_title("Training vs Validation Accuracy")
     axes[0].set_xlabel("Epoch")
@@ -161,7 +164,9 @@ def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = 
 
     # Plot Loss
     sns.lineplot(ax=axes[1], x=df["Epoch"], y=df["Train Loss"], label="Train Loss")
-    sns.lineplot(ax=axes[1], x=df["Epoch"], y=df["Validation Loss"], label="Validation Loss")
+    sns.lineplot(
+        ax=axes[1], x=df["Epoch"], y=df["Validation Loss"], label="Validation Loss"
+    )
     axes[1].set_title("Training vs Validation Loss")
     axes[1].set_xlabel("Epoch")
     axes[1].set_ylabel("Loss")
@@ -178,9 +183,17 @@ def plot_wandb_metrics(wandb_path: str, save_path: Path, title: Optional[str] = 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot W&B metrics and save as figure.")
-    parser.add_argument("wandb_path", type=str, help="W&B run path: username/project/run_id")
-    parser.add_argument("--save_path", type=Path, default=Path.cwd() / "centralized_baseline_wandb_plot.png")
-    parser.add_argument("--title", type=str, default=None, help="Title for the overall figure")
+    parser.add_argument(
+        "wandb_path", type=str, help="W&B run path: username/project/run_id"
+    )
+    parser.add_argument(
+        "--save_path",
+        type=Path,
+        default=Path.cwd() / "centralized_baseline_wandb_plot.png",
+    )
+    parser.add_argument(
+        "--title", type=str, default=None, help="Title for the overall figure"
+    )
     args = parser.parse_args()
 
     plot_wandb_metrics(args.wandb_path, args.save_path, args.title)
