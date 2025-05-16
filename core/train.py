@@ -30,6 +30,9 @@ def _train(
     optimizer: torch.optim.Optimizer,
     scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None,
 ):
+    """
+    Note: .loss.item() returns the average per batch loss (not the sum of the losses of the elements in the batch).
+    """
     device = get_device()
     model.train()
     running_loss = 0.0
@@ -70,6 +73,7 @@ def compute_predictions(
 ):
     """
     Compute predictions for a given dataloader using the trained model.
+    Note: .loss.item() returns the average per batch loss (not the sum of the losses of the elements in the batch).
 
     Args:
         model: The trained model.
