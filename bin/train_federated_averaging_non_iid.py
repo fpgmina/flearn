@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--client_labels",
-        type=str,
+        type=int,
         required=True,
         help="Number of labels each client gets",
     )
