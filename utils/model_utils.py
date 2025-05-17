@@ -1,6 +1,6 @@
 import os
 import torch
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import Optional, Dict, List
 from pathlib import Path
 import numpy as np
@@ -160,3 +160,8 @@ def non_iid_sharding(
             client_data[client_id].extend(samples)
 
     return dict(client_data)
+
+
+
+def count_labels_per_dataset(dataset: Dataset) -> Dict[int, int]:
+    return dict(Counter((label for _, label in dataset)))
