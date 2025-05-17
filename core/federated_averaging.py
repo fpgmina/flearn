@@ -137,14 +137,19 @@ class FederatedAveraging:
             raise NotImplementedError()
         return train_client_data, val_client_data
 
+
+    @property
+    def project_name(self):
+        return self._wandb_project_name or "fl"
+
     @property
     def _session_name(self) -> str:
         optimizer_params = self.client_training_params.optimizer_params
-        _training_session_name = self._wandb_project_name or "fl"
+        _num_classes = f"_{self._num_classes}" if self._num_classes  else ""
         return (
-            _training_session_name
-            + f"_mom_{optimizer_params.get('momentum'):.2f}_decay_{optimizer_params.get('weight_decay'):.3f}_lr"
+             f"mom_{optimizer_params.get('momentum'):.2f}_decay_{optimizer_params.get('weight_decay'):.3f}_lr"
             + f"_{self.client_training_params.learning_rate:.2f}_{self.sharding_type.name}"
+            + _num_classes
         )
 
     def _evaluate(self) -> Tuple[float, float, float, float]:
@@ -177,7 +182,7 @@ class FederatedAveraging:
         """
 
         wandb.init(
-            project=self._wandb_project_name,
+            project=self.project_name,
             name=self._session_name,
             config={
                 "epochs": self.client_training_params.epochs,

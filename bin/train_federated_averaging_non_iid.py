@@ -1,3 +1,4 @@
+import argparse
 import torch
 from torch import nn
 from core.federated_averaging import FederatedAveraging, ShardingType
@@ -9,6 +10,17 @@ from dataset.cifar_100 import (
 from models.dino_backbone import get_dino_backbone_model
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--client_labels",
+        type=str,
+        required=True,
+        help="Number of labels each client gets",
+    )
+
+    args = parser.parse_args()
+
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=32)
     model = get_dino_backbone_model()
     trainset, valset, _ = get_cifar_datasets()
@@ -34,7 +46,7 @@ if __name__ == "__main__":
         valset=valset,
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
-        num_classes=5,  # only samples of 5 labels on average
+        num_classes=args.client_label,  # only samples of #client_label labels on average
         wandb_project_name="fl_non_iid",
     )
     fedav.train()
