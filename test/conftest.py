@@ -102,6 +102,13 @@ def ternary_dataset():
 
 
 @pytest.fixture
+def dataset():
+    data = [i for i in range(4000)]
+    labels = [i % 10 for i in range(4000)]
+    return SimpleDataset(data, labels)
+
+
+@pytest.fixture
 def dummy_dataloader():
     torch.manual_seed(42)
     inputs = torch.randn(100, 10)

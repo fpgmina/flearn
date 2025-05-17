@@ -107,60 +107,46 @@ def non_iid_sharding(
     seed: Optional[int] = 42,
 ) -> Dict[int, List[int]]:
     """
-    Split the dataset into non-i.i.d. shards.
-
-    Each client receives samples from exactly `num_classes` classes.
-
-    Args:
-        dataset (Dataset): Dataset to be split.
-        num_clients (int): Number of clients.
-        num_classes (int): Number of classes per client.
-        seed (Optional[int]): Random seed.
+    Non-iid sharding with resampling:
+    Each client gets `len(dataset) // num_clients` samples from `num_classes` classes.
+    Classes can be assigned to multiple clients, and samples can be resampled.
 
     Returns:
-        Dict[int, List[int]]: Mapping client ID to list of sample indices.
+        Dict[client_id, List[int]]
     """
-    client_data = defaultdict(list)
-    class_indices = defaultdict(list)
+    rng = np.random.default_rng(seed)
 
     # Group sample indices by class
+    class_indices = defaultdict(list)
     for idx, (_, label) in enumerate(dataset):
         class_indices[label].append(idx)
 
+    for cls in class_indices:
+        rng.shuffle(class_indices[cls])
+
     all_classes = list(class_indices.keys())
-    total_classes = len(all_classes)
+    total_samples = len(dataset)
+    samples_per_client = total_samples // num_clients
+    samples_per_class = samples_per_client // num_classes
 
-    if num_classes > total_classes:
-        raise ValueError(
-            f"Requested {num_classes} classes per client, "
-            f"but dataset only has {total_classes} classes."
-        )
+    client_data = {}
 
-    if num_clients * num_classes > total_classes * len(class_indices[0]):
-        print("Warning: There may be overlapping class assignments among clients.")
-
-    rng = np.random.default_rng(seed)
-
-    # Shuffle class list for randomness
-    rng.shuffle(all_classes)
-
-    # Assign classes to clients
-    class_pool = all_classes.copy()
     for client_id in range(num_clients):
-        if len(class_pool) < num_classes:
-            class_pool = all_classes.copy()
-            rng.shuffle(class_pool)
-        selected_classes = class_pool[:num_classes]
-        class_pool = class_pool[num_classes:]
+        selected_classes = rng.choice(all_classes, size=num_classes, replace=False)
+        client_samples = []
 
-        # Assign samples from selected classes
         for cls in selected_classes:
-            samples = class_indices[cls]
-            rng.shuffle(samples)
-            client_data[client_id].extend(samples)
+            pool = class_indices[cls]
+            # If not enough samples in class, sample with replacement
+            if len(pool) >= samples_per_class:
+                sampled = rng.choice(pool, size=samples_per_class, replace=False)
+            else:
+                sampled = rng.choice(pool, size=samples_per_class, replace=True)
+            client_samples.extend(sampled)
 
-    return dict(client_data)
+        client_data[client_id] = client_samples
 
+    return client_data
 
 
 def count_labels_per_dataset(dataset: Dataset) -> Dict[int, int]:
