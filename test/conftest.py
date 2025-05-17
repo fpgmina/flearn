@@ -95,16 +95,9 @@ def binary_dataset():
 
 
 @pytest.fixture
-def ternary_dataset():
-    data = [i for i in range(12)]
-    labels = [i % 3 for i in range(12)]  # Three classes: 0, 1, and 2
-    return SimpleDataset(data, labels)
-
-
-@pytest.fixture
-def dataset():
-    data = [i for i in range(4000)]
-    labels = [i % 10 for i in range(4000)]
+def dummy_dataset():
+    data = [i for i in range(4000)]  # 4000 samples
+    labels = [i % 10 for i in range(4000)]  # 10 classes
     return SimpleDataset(data, labels)
 
 

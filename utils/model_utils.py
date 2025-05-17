@@ -108,8 +108,12 @@ def non_iid_sharding(
 ) -> Dict[int, List[int]]:
     """
     Non-iid sharding with resampling:
-    Each client gets `len(dataset) // num_clients` samples from `num_classes` classes.
+    Each client gets `len(dataset) // num_clients` samples from `num_classes` classes, e.g.
+    if I set num_classes=1 and num_clients=100 on a dataset with 40000 samples,
+    each client will have 400 samples all belonging to a single class. Note that if there aren't enough
+    samples in the class (e.g. class 0 has only 390 samples), sample with replacement.
     Classes can be assigned to multiple clients, and samples can be resampled.
+
 
     Returns:
         Dict[client_id, List[int]]
@@ -132,6 +136,7 @@ def non_iid_sharding(
     client_data = {}
 
     for client_id in range(num_clients):
+        # select classes for client_id
         selected_classes = rng.choice(all_classes, size=num_classes, replace=False)
         client_samples = []
 

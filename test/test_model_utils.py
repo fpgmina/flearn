@@ -68,20 +68,20 @@ def test_iid_sharding(binary_dataset):
     ), "Some data points are missing or duplicated in the sharded data"
 
 
-def test_non_iid_sharding(dataset):
+def test_non_iid_sharding(dummy_dataset):
     num_clients = 10
     num_classes = 5
     shard_data = non_iid_sharding(
-        dataset, num_clients=num_clients, num_classes=num_classes
+        dummy_dataset, num_clients=num_clients, num_classes=num_classes
     )
     assert (
         len(shard_data) == num_clients
     ), "Number of clients in the sharded data is incorrect"
     for k, v in shard_data.items():
         assert (
-            len(v) == len(dataset) / num_clients
+            len(v) == len(dummy_dataset) / num_clients
         ), f"Client {k} does not have the correct number of samples"  # each client gets 400 samples
-        count = Counter([dataset[i][1] for i in shard_data[k]])
+        count = Counter([dummy_dataset[i][1] for i in shard_data[k]])
         assert (
             len(count) == num_classes
         ), f"Client {k} has samples corresponding to more than {num_classes} classes"  # each client gets samples of exactly 5 classes
@@ -99,7 +99,7 @@ def test_iid_reproducibility(binary_dataset):
     ), "Sharding results are not reproducible with the same seed"
 
 
-def test_non_iid_reproducibility(dataset):
+def test_non_iid_reproducibility(dummy_dataset):
     num_clients = 2
     num_classes = 2  # Each client will get 2 classes
     # Generate two shardings with the same seed
