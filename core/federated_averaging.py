@@ -88,7 +88,7 @@ class FederatedAveraging:
         default=None
     )  # num classes for non iid sharing
     _seed: int = attr.ib(default=42)
-    _training_session_name: Optional[str] = attr.ib(
+    _wandb_project_name: Optional[str] = attr.ib(
         validator=attr.validators.optional(attr.validators.instance_of(str)),
         default=None,
     )
@@ -107,7 +107,7 @@ class FederatedAveraging:
         _batch_size (int): Batch size for training and validation. Default is 32.
         _num_classes (Optional[int]): Number of classes for non-IID sharding. Required if NON_IID.
         _seed (int): Base seed for reproducibility. Default is 42.
-        _training_session_name (str): Base name for training and WandB logging.
+        _wandb_project_name (str): Base name for training and WandB logging.
     Methods:
         train: perform training using federated learning algorithm. 
     """
@@ -140,7 +140,7 @@ class FederatedAveraging:
     @property
     def _session_name(self) -> str:
         optimizer_params = self.client_training_params.optimizer_params
-        _training_session_name = self._training_session_name or "fl"
+        _training_session_name = self._wandb_project_name or "fl"
         return (
             _training_session_name
             + f"_mom_{optimizer_params.get('momentum'):.2f}_decay_{optimizer_params.get('weight_decay'):.3f}_lr"
@@ -177,7 +177,7 @@ class FederatedAveraging:
         """
 
         wandb.init(
-            project="fl",
+            project=self._wandb_project_name,
             name=self._session_name,
             config={
                 "epochs": self.client_training_params.epochs,

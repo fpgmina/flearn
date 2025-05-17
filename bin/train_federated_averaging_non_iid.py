@@ -35,5 +35,6 @@ if __name__ == "__main__":
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=5,  # only samples of 5 labels on average
+        wandb_project_name="fl_non_iid",
     )
     fedav.train()

@@ -34,6 +34,6 @@ if __name__ == "__main__":
         valset=valset,
         client_training_params=client_training_params,
         sharding_type=ShardingType.IID,
-        training_session_name="fl_iid",
+        wandb_project_name="fl_iid",
     )
     fedav.train()
