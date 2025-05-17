@@ -201,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_path",
         type=Path,
-        default=Path.cwd() / "federated_iid_wandb_plot.png",
+        default=Path.cwd() / "centralized_model_edited_wandb_plot.png",
     )
     parser.add_argument(
         "--title", type=str, default=None, help="Title for the overall figure"
@@ -218,3 +218,4 @@ if __name__ == "__main__":
 
 # python utils/plot_utils.py "francesco-mina-fpgm/centralized_baseline/runs/ho4h2mic" --title "CENTRALIZED BASELINE"
 # python utils/plot_utils.py francesco-mina-fpgm/fl/runs/e7bt2wc0 --title "FEDERATED IID" --is_federated True
+# python utils/plot_utils.py francesco-mina-fpgm/centralized_model_edited_baseline/runs/4latjoqr --title "CENTRALIZED MODEL EDITED"
