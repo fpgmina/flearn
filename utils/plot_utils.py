@@ -193,6 +193,62 @@ def plot_wandb_metrics(
     plt.savefig(save_path, bbox_inches="tight")
 
 
+def plot_wandb_comparison(project_path: str, metric_keys=None, max_steps=None):
+    """
+    Plots training and validation metrics for all runs in a given W&B project.
+
+    Args:
+        project_path (str): "username/project_name"
+        metric_keys (dict): Mapping of plot titles to W&B metric keys, e.g.:
+            {
+                "Train Loss": "Train Loss",
+                "Validation Loss": "Validation Loss",
+                "Train Accuracy": "Train Accuracy",
+                "Validation Accuracy": "Validation Accuracy"
+            }
+        max_steps (int): Optional. Limit number of steps plotted per run.
+    """
+    if metric_keys is None:
+        metric_keys = {
+            "Train Loss": "Train Loss",
+            "Validation Loss": "Validation Loss",
+            "Train Accuracy": "Train Accuracy",
+            "Validation Accuracy": "Validation Accuracy",
+        }
+
+    api = wandb.Api()
+    runs = api.runs(project_path)
+
+    # Prepare data
+    all_data = []
+    for run in runs:
+        try:
+            history = run.history(samples=max_steps)
+            history["run"] = run.name
+            all_data.append(history)
+        except Exception as e:
+            print(f"Skipping {run.name}: {e}")
+
+    if not all_data:
+        print("No run data found.")
+        return
+
+    df_all = pd.concat(all_data)
+
+    # Plot
+    sns.set(style="whitegrid")
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    axes = axes.flatten()
+
+    for i, (title, metric) in enumerate(metric_keys.items()):
+        sns.lineplot(data=df_all, x="_step", y=metric, hue="run", ax=axes[i])
+        axes[i].set_title(title)
+        axes[i].set_xlabel("Step")
+        axes[i].legend(loc="best")
+
+    plt.tight_layout()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot W&B metrics and save as figure.")
     parser.add_argument(
