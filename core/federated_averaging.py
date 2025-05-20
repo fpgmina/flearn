@@ -220,7 +220,7 @@ class FederatedAveraging:
                     model=local_model,
                     optimizer_params={
                         **self.client_training_params.optimizer_params,
-                        **{"named_params": dict(local_model.named_params())},
+                        **{"named_params": dict(local_model.named_parameters())},
                     },
                 )
                 train_loader = get_dataloader(
