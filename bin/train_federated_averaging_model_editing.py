@@ -23,12 +23,13 @@ if __name__ == "__main__":
     model = get_dino_backbone_model(freeze_backbone=False)
     mask = Mask.load_state_dict(torch.load(mask_path))
 
-    named_params = dict(model.named_parameters())
-    mask.validate_against(named_params)
 
     device = get_device()
     model.to(device)
     mask.to(device)
+
+    named_params = dict(model.named_parameters())
+    mask.validate_against(named_params)
 
     client_training_params = TrainingParams(
         training_name="fl_client_training_params_model_edit",

@@ -62,9 +62,6 @@ def run_single(
     model = get_dino_backbone_model(freeze_backbone=False)
     mask = Mask.load_state_dict(torch.load(mask_path))
 
-    named_params = dict(model.named_parameters())
-    mask.validate_against(named_params)
-
     _training_name = (
         f"centralized_baseline_bs_{batch_size}_momentum_{momentum:.2f}_wdecay_"
         f"{weight_decay:.2f}_lr_{lr:.2f}_cosineLR_MODEL_EDIT_90"
@@ -73,6 +70,9 @@ def run_single(
     device = get_device()
     model.to(device)
     mask.to(device)
+
+    named_params = dict(model.named_parameters())
+    mask.validate_against(named_params)
 
     params = TrainingParams(
         training_name=_training_name,
