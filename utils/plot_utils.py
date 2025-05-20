@@ -195,19 +195,14 @@ def plot_wandb_metrics(
     plt.savefig(save_path, bbox_inches="tight")
 
 
-def plot_wandb_comparison(
-    project_path: str,
-    save_path: str,
-    metric_keys=None,
-    max_steps=None,
-    rename_runs=None,
-):
+
+def plot_wandb_comparison(project_path: str, save_path: str, metric_keys=None, max_steps=None, rename_runs=None):
     """
     Plots loss and accuracy metrics for all runs in a given W&B project.
 
     Args:
         project_path (str): The project path in the format "username/project_name".
-        save_path (str): path to save figure.
+        save_path (str): Path to save the figure.
         metric_keys (dict): Mapping of plot titles to W&B metric keys, e.g.:
             {
                 "Train Loss": "Train Loss",
@@ -215,7 +210,7 @@ def plot_wandb_comparison(
                 "Train Accuracy": "Train Accuracy",
                 "Validation Accuracy": "Validation Accuracy"
             }
-        max_steps (int, optional): Limit number of steps plotted per run.
+        max_steps (int, optional): Limit the number of steps plotted per run.
         rename_runs (dict, optional): A dictionary that maps run names to new names (e.g. {"run1": "Model A", ...}).
     """
     if metric_keys is None:
@@ -232,6 +227,11 @@ def plot_wandb_comparison(
     # Get all runs from the project
     runs = api.runs(project_path)
 
+    if not rename_runs:
+        rename_runs = dict()
+        for run in runs:
+            rename_runs[run.name] = "_".join(run.name.split("_")[-3:])
+
     # Prepare data for plotting
     all_data = []
     for run in runs:
@@ -240,8 +240,8 @@ def plot_wandb_comparison(
             history["run"] = run.name
 
             # If rename_runs dictionary is provided, rename the run names accordingly
-            # if rename_runs and run.name in rename_runs:
-            #     history["run"] = rename_runs[run.name]
+            if rename_runs and run.name in rename_runs:
+                history["run"] = rename_runs[run.name]
 
             all_data.append(history)
         except Exception as e:
@@ -260,32 +260,28 @@ def plot_wandb_comparison(
     # Create plots
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-    # Plot Loss
-    for metric in ["Train Loss", "Validation Loss"]:
-        if metric in metric_keys.values():
-            sns.lineplot(
-                data=df_all, x="_step", y=metric_keys[metric], hue="run", ax=axes[0]
-            )
+    # Plot Loss with distinct Train and Validation
+    sns.lineplot(data=df_all, x="_step", y=metric_keys["Train Loss"], hue="run", style="run", markers=True, ax=axes[0])
+    sns.lineplot(data=df_all, x="_step", y=metric_keys["Validation Loss"], hue="run", style="run", markers=True, ax=axes[0])
     axes[0].set_title("Loss")
     axes[0].set_xlabel("Step")
     axes[0].set_ylabel("Loss")
-    axes[0].legend(loc="best")
+    axes[0].legend(title="Runs", loc="best")
     axes[0].grid(True)
 
-    # Plot Accuracy
-    for metric in ["Train Accuracy", "Validation Accuracy"]:
-        if metric in metric_keys.values():
-            sns.lineplot(
-                data=df_all, x="_step", y=metric_keys[metric], hue="run", ax=axes[1]
-            )
+    # Plot Accuracy with distinct Train and Validation
+    sns.lineplot(data=df_all, x="_step", y=metric_keys["Train Accuracy"], hue="run", style="run", markers=True, ax=axes[1])
+    sns.lineplot(data=df_all, x="_step", y=metric_keys["Validation Accuracy"], hue="run", style="run", markers=True, ax=axes[1])
     axes[1].set_title("Accuracy")
     axes[1].set_xlabel("Step")
     axes[1].set_ylabel("Accuracy")
-    axes[1].legend(loc="best")
+    axes[1].legend(title="Runs", loc="best")
     axes[1].grid(True)
 
     # Adjust layout
     plt.tight_layout()
+
+    # Save the plot as PNG
     save_path = save_path.with_suffix(".png")
     plt.savefig(save_path, bbox_inches="tight")
 
