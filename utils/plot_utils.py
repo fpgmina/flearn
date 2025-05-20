@@ -1,5 +1,7 @@
 import argparse
 from pathlib import Path
+
+import pandas as pd
 import wandb
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -193,12 +195,19 @@ def plot_wandb_metrics(
     plt.savefig(save_path, bbox_inches="tight")
 
 
-def plot_wandb_comparison(project_path: str, metric_keys=None, max_steps=None):
+def plot_wandb_comparison(
+    project_path: str,
+    save_path: str,
+    metric_keys=None,
+    max_steps=None,
+    rename_runs=None,
+):
     """
-    Plots training and validation metrics for all runs in a given W&B project.
+    Plots loss and accuracy metrics for all runs in a given W&B project.
 
     Args:
-        project_path (str): "username/project_name"
+        project_path (str): The project path in the format "username/project_name".
+        save_path (str): path to save figure.
         metric_keys (dict): Mapping of plot titles to W&B metric keys, e.g.:
             {
                 "Train Loss": "Train Loss",
@@ -206,7 +215,8 @@ def plot_wandb_comparison(project_path: str, metric_keys=None, max_steps=None):
                 "Train Accuracy": "Train Accuracy",
                 "Validation Accuracy": "Validation Accuracy"
             }
-        max_steps (int): Optional. Limit number of steps plotted per run.
+        max_steps (int, optional): Limit number of steps plotted per run.
+        rename_runs (dict, optional): A dictionary that maps run names to new names (e.g. {"run1": "Model A", ...}).
     """
     if metric_keys is None:
         metric_keys = {
@@ -216,15 +226,23 @@ def plot_wandb_comparison(project_path: str, metric_keys=None, max_steps=None):
             "Validation Accuracy": "Validation Accuracy",
         }
 
+    # Initialize W&B API
     api = wandb.Api()
+
+    # Get all runs from the project
     runs = api.runs(project_path)
 
-    # Prepare data
+    # Prepare data for plotting
     all_data = []
     for run in runs:
         try:
             history = run.history(samples=max_steps)
             history["run"] = run.name
+
+            # If rename_runs dictionary is provided, rename the run names accordingly
+            # if rename_runs and run.name in rename_runs:
+            #     history["run"] = rename_runs[run.name]
+
             all_data.append(history)
         except Exception as e:
             print(f"Skipping {run.name}: {e}")
@@ -233,20 +251,43 @@ def plot_wandb_comparison(project_path: str, metric_keys=None, max_steps=None):
         print("No run data found.")
         return
 
+    # Concatenate all run data into a single DataFrame
     df_all = pd.concat(all_data)
 
-    # Plot
-    sns.set(style="whitegrid")
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    axes = axes.flatten()
+    # Set the plot style
+    sns.set_theme(style="whitegrid")
 
-    for i, (title, metric) in enumerate(metric_keys.items()):
-        sns.lineplot(data=df_all, x="_step", y=metric, hue="run", ax=axes[i])
-        axes[i].set_title(title)
-        axes[i].set_xlabel("Step")
-        axes[i].legend(loc="best")
+    # Create plots
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
+    # Plot Loss
+    for metric in ["Train Loss", "Validation Loss"]:
+        if metric in metric_keys.values():
+            sns.lineplot(
+                data=df_all, x="_step", y=metric_keys[metric], hue="run", ax=axes[0]
+            )
+    axes[0].set_title("Loss")
+    axes[0].set_xlabel("Step")
+    axes[0].set_ylabel("Loss")
+    axes[0].legend(loc="best")
+    axes[0].grid(True)
+
+    # Plot Accuracy
+    for metric in ["Train Accuracy", "Validation Accuracy"]:
+        if metric in metric_keys.values():
+            sns.lineplot(
+                data=df_all, x="_step", y=metric_keys[metric], hue="run", ax=axes[1]
+            )
+    axes[1].set_title("Accuracy")
+    axes[1].set_xlabel("Step")
+    axes[1].set_ylabel("Accuracy")
+    axes[1].legend(loc="best")
+    axes[1].grid(True)
+
+    # Adjust layout
     plt.tight_layout()
+    save_path = save_path.with_suffix(".png")
+    plt.savefig(save_path, bbox_inches="tight")
 
 
 if __name__ == "__main__":
