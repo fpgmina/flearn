@@ -74,6 +74,8 @@ class SparseSGDM(SGD):
             assert torch.equal(
                 p1.data, p2.data
             ), f"params and named_params.values() mismatch: {p1} contains different data from {p2}"
+            # NOTE: I actually don't need to check the assertion below as the only thing I care about is that parameters
+            # from params and named_params are in the exact same order, but I am going to leave it out of extra caution.
             assert (
                 p1 is p2
             ), f"params and named_params.values() mismatch: {p1} is not {p2}"
