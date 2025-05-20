@@ -71,7 +71,9 @@ class SparseSGDM(SGD):
             named_param_list
         ), f"params and named_params have different lengths: {len(param_list)} vs {len(named_param_list)}"
         for p1, p2 in zip(param_list, named_param_list):
-            assert torch.equal(p1.data, p2.data), f"params and named_params.values() mismatch: {p1} contains different data from {p2}"
+            assert torch.equal(
+                p1.data, p2.data
+            ), f"params and named_params.values() mismatch: {p1} contains different data from {p2}"
             assert (
                 p1 is p2
             ), f"params and named_params.values() mismatch: {p1} is not {p2}"
