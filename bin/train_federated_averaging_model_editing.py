@@ -4,9 +4,9 @@ from core.federated_averaging import FederatedAveraging, ShardingType
 from core.model_editing import Mask
 from core.train_params import TrainingParams
 from dataset.cifar_100 import (
-    get_cifar_dataloaders,
     get_cifar_datasets,
 )
+from optim.ssgd import SparseSGDM
 from models.dino_backbone import get_dino_backbone_model
 from utils.model_utils import get_device
 
