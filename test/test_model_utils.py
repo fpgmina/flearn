@@ -103,8 +103,8 @@ def test_non_iid_reproducibility(dummy_dataset):
     num_clients = 2
     num_classes = 2  # Each client will get 2 classes
     # Generate two shardings with the same seed
-    shard_data_1 = non_iid_sharding(dataset, num_clients, num_classes, seed=42)
-    shard_data_2 = non_iid_sharding(dataset, num_clients, num_classes, seed=42)
+    shard_data_1 = non_iid_sharding(dummy_dataset, num_clients, num_classes, seed=42)
+    shard_data_2 = non_iid_sharding(dummy_dataset, num_clients, num_classes, seed=42)
 
     # Assert that both shardings are the same (reproducibility)
     assert (
