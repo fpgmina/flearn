@@ -216,7 +216,12 @@ class FederatedAveraging:
             for client_id in tqdm(selected_clients):
                 local_model = copy.deepcopy(self.global_model)
                 training_params = attr.evolve(
-                    self.client_training_params, model=local_model
+                    self.client_training_params,
+                    model=local_model,
+                    optimizer_params={
+                        **self.client_training_params.optimizer_params,
+                        **{"named_params": dict(local_model.named_params())},
+                    },
                 )
                 train_loader = get_dataloader(
                     self.trainset,
