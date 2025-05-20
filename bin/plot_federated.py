@@ -20,3 +20,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     plot_wandb_comparison(args.wandb_path, args.save_path, args.title)
+
+# python bin/plot_federated.py francesco-mina-fpgm/fl_non_iid --title "FEDERATED NON-IID"
