@@ -23,7 +23,6 @@ if __name__ == "__main__":
     model = get_dino_backbone_model(freeze_backbone=False)
     mask = Mask.load_state_dict(torch.load(mask_path))
 
-
     device = get_device()
     model.to(device)
     mask.to(device)
