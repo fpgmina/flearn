@@ -8,7 +8,7 @@ import torch
 from werkzeug.utils import cached_property
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import Dict, Optional, Union, Iterable, Tuple
+from typing import Dict, Optional, Union, Iterable, Tuple, List
 from utils.model_utils import get_device
 
 
@@ -111,6 +111,33 @@ class Mask:
     @classmethod
     def load_state_dict(cls, state: Dict[str, torch.Tensor]) -> Mask:
         return cls(mask_dict=state)
+
+    def unmask_layers(self, layers: Union[str, List[str]]) -> Mask:
+        """
+        Set the masks for the specified layers to 1, meaning that all parameters
+        of these layers are unmasked and trainable.
+
+        Args:
+            layers (Union[str, List[str]]): The name(s) of the layer(s) whose mask should be set to 1.
+
+        Returns:
+            Mask: A new Mask object with the specified layers' masks updated to 1.
+        """
+        # Ensure layers is a list, even if it's a single string
+        if isinstance(layers, str):
+            layers = [layers]
+
+        # Check that each layer exists in the mask
+        for layer_name in layers:
+            if layer_name not in self.mask_dict:
+                raise ValueError(f"Layer '{layer_name}' not found in the mask.")
+
+        # Create a new mask where the specified layers' masks are set to all 1's
+        updated_mask_dict = self.mask_dict.copy()
+        for layer_name in layers:
+            updated_mask_dict[layer_name] = torch.ones_like(self.mask_dict[layer_name], dtype=torch.float32)
+
+        return Mask(mask_dict=updated_mask_dict)
 
     def validate_against(
         self,

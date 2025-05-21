@@ -27,4 +27,5 @@ if __name__ == "__main__":
     plot_mask(fisher_mask, Path(save_path))
 
 
-# python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask.pth"
+# python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask_90.pth"
+# python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask_90_NO_WARMUP.pth"
