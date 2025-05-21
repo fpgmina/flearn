@@ -24,6 +24,8 @@ if __name__ == "__main__":
     mask = Mask.load_state_dict(torch.load(mask_path))
     # TODO: cambia la head della mask cosi' che abbia 1s in modo che sia consistente con il model.
     #  (model ha random weights nella head, voglio poterli update)
+    mask = mask.unmask_layers(["head.weight", "head.bias"])
+
     device = get_device()
     model.to(device)
     mask.to(device)

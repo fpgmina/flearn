@@ -345,3 +345,4 @@ if __name__ == "__main__":
 # python utils/plot_utils.py "francesco-mina-fpgm/centralized_baseline/runs/ho4h2mic" --title "CENTRALIZED BASELINE"
 # python utils/plot_utils.py francesco-mina-fpgm/fl/runs/e7bt2wc0 --title "FEDERATED IID" --is_federated True
 # python utils/plot_utils.py francesco-mina-fpgm/centralized_model_edited_baseline/runs/4latjoqr --title "CENTRALIZED MODEL EDITED"
+# python utils/plot_utils.py francesco-mina-fpgm/centralized_model_edited_baseline/runs/w3oyu1d9 --title "CENTRALIZED MODEL EDITED"
