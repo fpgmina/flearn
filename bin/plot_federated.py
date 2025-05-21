@@ -22,3 +22,4 @@ if __name__ == "__main__":
     plot_wandb_comparison(args.wandb_path, args.save_path, args.title)
 
 # python bin/plot_federated.py francesco-mina-fpgm/fl_non_iid --title "FEDERATED NON-IID"
+# python bin/plot_federated.py francesco-mina-fpgm/fl_non_iid_model_edit --title "FEDERATED MODEL EDITED NON-IID
