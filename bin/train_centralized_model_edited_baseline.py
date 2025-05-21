@@ -61,7 +61,7 @@ def run_single(
     # Load model with editable backbone and modified head to fit on CIFAR100
     model = get_dino_backbone_model(freeze_backbone=False)
     mask = Mask.load_state_dict(torch.load(mask_path))
-    #TODO: cambia la head della mask cosi' che abbia 1s in modo che sia consistente con il model.
+    # TODO: cambia la head della mask cosi' che abbia 1s in modo che sia consistente con il model.
     mask = mask.unmask_layers(["head.weight", "head.bias"])
 
     _training_name = (

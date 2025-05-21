@@ -135,7 +135,9 @@ class Mask:
         # Create a new mask where the specified layers' masks are set to all 1's
         updated_mask_dict = self.mask_dict.copy()
         for layer_name in layers:
-            updated_mask_dict[layer_name] = torch.ones_like(self.mask_dict[layer_name], dtype=torch.float32)
+            updated_mask_dict[layer_name] = torch.ones_like(
+                self.mask_dict[layer_name], dtype=torch.float32
+            )
 
         return Mask(mask_dict=updated_mask_dict)
 
