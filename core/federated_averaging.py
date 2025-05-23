@@ -65,6 +65,26 @@ def federated_averaging(
 
 @attr.s(kw_only=True)
 class FederatedAveraging:
+    """
+    Class to perform Federated Averaging training across multiple clients.
+
+    Args:
+        global_model (torch.nn.Module): The global model to be updated via federated learning.
+        trainset (Dataset): The training dataset to be distributed among clients.
+        valset (Dataset): The validation dataset to be used for local and global evaluation.
+        client_training_params (TrainingParams): Parameters used for local client training.
+        sharding_type (ShardingType): Strategy to shard dataset among clients (IID or NON_IID).
+        _num_clients (int): Total number of simulated clients. Default is 100.
+        _client_fraction (float): Fraction of clients selected in each round. Default is 0.1.
+        _rounds (int): Number of communication rounds between server and clients. Default is 10.
+        _batch_size (int): Batch size for training and validation. Default is 32.
+        _num_classes (Optional[int]): Number of classes for non-IID sharding. Required if NON_IID.
+        _seed (int): Base seed for reproducibility. Default is 42.
+        _wandb_project_name (str): Base name for training and WandB logging.
+    Methods:
+        train: perform training using federated learning algorithm.
+    """
+
     global_model: torch.nn.Module = attr.ib(validator=is_nn_module)
     trainset: Dataset = attr.ib(validator=attr.validators.instance_of(Dataset))
     valset: Dataset = attr.ib(validator=attr.validators.instance_of(Dataset))
@@ -92,25 +112,6 @@ class FederatedAveraging:
         validator=attr.validators.optional(attr.validators.instance_of(str)),
         default=None,
     )
-    """
-    Class to perform Federated Averaging training across multiple clients.
-
-    Args:
-        global_model (torch.nn.Module): The global model to be updated via federated learning.
-        trainset (Dataset): The training dataset to be distributed among clients.
-        valset (Dataset): The validation dataset to be used for local and global evaluation.
-        client_training_params (TrainingParams): Parameters used for local client training.
-        sharding_type (ShardingType): Strategy to shard dataset among clients (IID or NON_IID).
-        _num_clients (int): Total number of simulated clients. Default is 100.
-        _client_fraction (float): Fraction of clients selected in each round. Default is 0.1.
-        _rounds (int): Number of communication rounds between server and clients. Default is 10.
-        _batch_size (int): Batch size for training and validation. Default is 32.
-        _num_classes (Optional[int]): Number of classes for non-IID sharding. Required if NON_IID.
-        _seed (int): Base seed for reproducibility. Default is 42.
-        _wandb_project_name (str): Base name for training and WandB logging.
-    Methods:
-        train: perform training using federated learning algorithm. 
-    """
 
     def __attrs_post_init__(self):
         if self.sharding_type == ShardingType.NON_IID:
