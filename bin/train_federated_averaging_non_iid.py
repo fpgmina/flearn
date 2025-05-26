@@ -44,7 +44,7 @@ if __name__ == "__main__":
             "momentum": 0.9,
             "weight_decay": 5e-4,
         },
-        scheduler_params={"T_max": 5, "eta_min": 1e-5},
+        scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 
     fedav = FederatedAveraging(

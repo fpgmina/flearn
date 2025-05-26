@@ -66,7 +66,7 @@ if __name__ == "__main__":
             "grad_mask": mask,
             "named_params": named_params,
         },
-        scheduler_params={"T_max": 5, "eta_min": 1e-5},
+        scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 
     fedav = FederatedAveraging(
