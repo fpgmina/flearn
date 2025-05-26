@@ -18,6 +18,13 @@ if __name__ == "__main__":
         required=True,
         help="Number of labels each client gets",
     )
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        required=True,
+        default=1e-3,
+        help="Learning Rate of the model",
+    )
 
     args = parser.parse_args()
 
@@ -29,7 +36,7 @@ if __name__ == "__main__":
         training_name="fl_client_training_params",
         model=model,
         loss_function=nn.CrossEntropyLoss(),
-        learning_rate=1e-3,
+        learning_rate=args.learning_rate,
         optimizer_class=torch.optim.SGD,  # type: ignore
         scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
         epochs=5,  # TODO you might need to train harder with non iid distributions
@@ -37,7 +44,7 @@ if __name__ == "__main__":
             "momentum": 0.9,
             "weight_decay": 5e-4,
         },
-        scheduler_params={"T_max": 10},
+        scheduler_params={"T_max": 5, "eta_min": 1e-5},
     )
 
     fedav = FederatedAveraging(

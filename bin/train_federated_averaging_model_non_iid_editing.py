@@ -34,7 +34,6 @@ if __name__ == "__main__":
 
     momentum = 0.9
     weight_decay = 5e-4
-    lr = 1e-3
 
     mask_path = "/content/drive/MyDrive/progressive_fisher_mask_90.pth"
     trainset, valset, _ = get_cifar_datasets()
@@ -57,7 +56,7 @@ if __name__ == "__main__":
         training_name="fl_client_training_params_model_edit",
         model=model,
         loss_function=loss_fn,
-        learning_rate=lr,
+        learning_rate=args.learning_rate,
         optimizer_class=SparseSGDM,  # type: ignore
         scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
         epochs=5,
@@ -67,7 +66,7 @@ if __name__ == "__main__":
             "grad_mask": mask,
             "named_params": named_params,
         },
-        scheduler_params={"T_max": 10},
+        scheduler_params={"T_max": 5, "eta_min": 1e-5},
     )
 
     fedav = FederatedAveraging(
