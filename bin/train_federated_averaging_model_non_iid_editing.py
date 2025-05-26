@@ -22,6 +22,14 @@ if __name__ == "__main__":
         required=True,
         help="Number of labels each client gets",
     )
+
+    parser.add_argument(
+        "--learning_rate",
+        type=float,
+        required=True,
+        default=1e-3,
+        help="Learning Rate of the model",
+    )
     args = parser.parse_args()
 
     momentum = 0.9
