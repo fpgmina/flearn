@@ -457,7 +457,7 @@ def progressive_mask_calibration(
     target_sparsity: float = 0.9,
     rounds: int = 5,
     warn_tolerance: float = 0.02,
-) -> Dict[str, torch.Tensor]:
+) -> Mask:
     """
     Progressively create a gradient mask using Fisher info, applying pruning at each round.
 
