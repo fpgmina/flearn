@@ -225,6 +225,8 @@ class Mask:
 #     - N is the number of samples in the dataset or minibatch
 #
 
+##########################################
+##########################################
 
 # Notes on compute_fisher_diagonal: Why a parameter being zero does NOT imply its gradient is zero
 #
@@ -252,6 +254,49 @@ class Mask:
 # to keep it frozen — the optimizer could still update it if its gradient is non-zero.
 # You must ALSO zero the gradient before each optimizer step (e.g., param.grad *= mask)
 # to truly "freeze" the parameter and prevent it from being updated.
+
+##########################################
+##########################################
+
+# More notes on connection between Fisher diagonal and Hessian of the Loss function.
+# Suppose we have a probabilistic model with parameters theta,
+# and the loss is the negative log-likelihood:
+#     L(theta) = -log p(y | x; theta)
+#
+# The Fisher Information Matrix (FIM) is defined as:
+#     F_ij = E_{x, y}[ (d/dtheta_i log p(y|x; theta)) * (d/dtheta_j log p(y|x; theta)) ]
+# The diagonal entry is:
+#     F_ii = E_{x, y}[ (d/dtheta_i log p(y|x; theta))**2 ]
+#
+# The Hessian matrix of the loss is:
+#     H_ij = d^2/dtheta_i dtheta_j L(theta)
+#         = -d^2/dtheta_i dtheta_j log p(y|x; theta)
+#
+# For the diagonal: H_ii = d^2/dtheta_i^2 L(theta)
+#
+# For models where the loss is the negative log-likelihood,
+# and under certain regularity conditions (such as model being well-specified
+# and the expectation and differentiation can be interchanged), we have:
+#
+#     E_{x, y}[ H_ii ] = E_{x, y}[ d^2/dtheta_i^2 L(theta) ]
+#                      = E_{x, y}[ (d/dtheta_i L(theta))**2 ]
+#                      = F_ii
+#
+# Why does this happen?
+# - Because of a property of log-likelihood functions:
+#       E[ d^2/dtheta^2 log p(y|x; theta) ] = E[ (d/dtheta log p(y|x; theta))**2 ]
+#   (up to a sign).
+# - In other words, the expected curvature (second derivative)
+#   of the negative log-likelihood is equal to the variance of its gradient,
+#   which is the Fisher information.
+#
+# So, for the diagonal, we have:
+#     E[ Hessian diagonal ] == Fisher diagonal
+#
+# This is why, in practice, the Fisher diagonal is often used as
+# a data-driven, computationally efficient proxy for the diagonal Hessian
+# when measuring parameter sensitivity or for pruning.
+
 
 
 def compute_fisher_diagonal(
