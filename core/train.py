@@ -29,6 +29,8 @@ def _train(
     loss_func: nn.Module,
     optimizer: torch.optim.Optimizer,
     scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None,
+    max_steps: Optional[int] = None,
+    _current_steps: int = 0
 ):
     """
     Note: .loss.item() returns the average per batch loss (not the sum of the losses of the elements in the batch).
@@ -38,8 +40,11 @@ def _train(
     running_loss = 0.0
     correct = 0
     total = 0
+    steps_taken = 0
 
     for inputs, targets in train_loader:
+        if (max_steps is not None) and (_current_steps + steps_taken >= max_steps):
+            break  # Do not exceed the global max_steps
         inputs, targets = inputs.to(device), targets.to(device)
 
         preds = model(inputs)
@@ -53,16 +58,16 @@ def _train(
         _, predicted = preds.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
+        steps_taken += 1
 
     if scheduler is not None:
         scheduler.step()
 
-    train_loss = running_loss / len(
-        train_loader
-    )  # NB len(train_loader) is the total number of batches
+    train_loss = running_loss / (steps_taken if steps_taken > 0 else 1)
+    #NB used to be running_loss /  len(train_loader)  # NB len(train_loader) is the total number of batches
     train_accuracy = 100.0 * correct / total
 
-    return train_loss, train_accuracy
+    return train_loss, train_accuracy, steps_taken
 
 
 def compute_predictions(
@@ -172,6 +177,7 @@ def train_model(
                 "architecture": training_params.model.__class__.__name__,
                 "optimizer_class": training_params.optimizer_class.__name__,
                 "loss_function": training_params.loss_function.__class__.__name__,
+                "max_steps": training_params.max_steps,
                 **(training_params.optimizer_params or {}),
             },
         )
@@ -180,18 +186,25 @@ def train_model(
     loss_func = training_params.loss_function
     optimizer = training_params.optimizer
     scheduler = training_params.scheduler
+    max_steps = training_params.max_steps
 
     best_acc = 0
     num_epochs = training_params.epochs
+    total_steps = 0
 
     for epoch in range(1, num_epochs + 1):
-        train_loss, train_accuracy = _train(
+        if max_steps is not None and total_steps >= max_steps:
+            break
+        train_loss, train_accuracy, steps_this_epoch = _train(
             model=model,
             train_loader=train_loader,
             loss_func=loss_func,
             optimizer=optimizer,
             scheduler=scheduler,
+            max_steps=max_steps,
+            _current_steps=total_steps,
         )
+        total_steps += steps_this_epoch
         if wandb_log:
             # Log core metrics to wandb
             wandb.log(
@@ -199,11 +212,12 @@ def train_model(
                     "Epoch": epoch,
                     "Train Loss": train_loss,
                     "Train Accuracy": train_accuracy,
+                    "Total Steps": total_steps,
                 }
             )
         else:
             logging.info(
-                f"Epoch: {epoch}: Train Loss: {train_loss}, Train Accuracy: {train_accuracy}"
+                f"Epoch: {epoch}: Train Loss: {train_loss}, Train Accuracy: {train_accuracy}, Total Steps: {total_steps}"
             )
 
         if val_loader:

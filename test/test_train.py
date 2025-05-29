@@ -59,7 +59,7 @@ def mock_training_params():
 
 # Test for the _train function
 def test_train(mock_model, mock_train_loader, mock_loss_func, mock_optimizer):
-    train_loss, train_accuracy = _train(
+    train_loss, train_accuracy, steps = _train(
         model=mock_model,
         train_loader=mock_train_loader,
         loss_func=mock_loss_func,

@@ -48,6 +48,7 @@ class TrainingParams:
         model (nn.Module): The model to be trained.
         optimizer_class (torch.optim.Optimizer): The class of the optimizer to be used for core.
         loss_function (nn.Module): The loss function to be used.
+        max_steps (Optional[int]): The maximum number of optimization steps to be taken.
         optimizer_params (Optional[Dict[str, Any]]): A dictionary of additional optimizer parameters (optional).
     """
 
@@ -62,6 +63,7 @@ class TrainingParams:
     scheduler_class: Optional[torch.optim.lr_scheduler.LRScheduler] = attr.ib(
         validator=is_scheduler_class, default=None
     )
+    max_steps: Optional[int] = attr.ib(default=None)
     optimizer_params: Optional[Dict[str, Any]] = attr.ib(default=None)
     scheduler_params: Optional[Dict[str, Any]] = attr.ib(default=None)
 
