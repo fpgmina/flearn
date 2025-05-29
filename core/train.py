@@ -30,7 +30,7 @@ def _train(
     optimizer: torch.optim.Optimizer,
     scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None,
     max_steps: Optional[int] = None,
-    _current_steps: int = 0
+    _current_steps: int = 0,
 ):
     """
     Note: .loss.item() returns the average per batch loss (not the sum of the losses of the elements in the batch).
@@ -64,7 +64,7 @@ def _train(
         scheduler.step()
 
     train_loss = running_loss / (steps_taken if steps_taken > 0 else 1)
-    #NB used to be running_loss /  len(train_loader)  # NB len(train_loader) is the total number of batches
+    # NB used to be running_loss /  len(train_loader)  # NB len(train_loader) is the total number of batches
     train_accuracy = 100.0 * correct / total
 
     return train_loss, train_accuracy, steps_taken
