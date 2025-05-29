@@ -298,7 +298,6 @@ class Mask:
 # when measuring parameter sensitivity or for pruning.
 
 
-
 def compute_fisher_diagonal(
     model: nn.Module,
     dataloader: DataLoader,
@@ -431,10 +430,9 @@ def compute_param_squared_fisher_diagonal(
     params = torch.cat([p.detach().flatten() for p in model.parameters()])
 
     # Elementwise square and multiply by fisher_diag
-    param_squared_fisher = (params ** 2) * fisher_diag
+    param_squared_fisher = (params**2) * fisher_diag
 
     return param_squared_fisher, fisher_diag
-
 
 
 def create_fisher_mask(

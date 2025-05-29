@@ -35,7 +35,7 @@ if __name__ == "__main__":
         type=int,
         required=True,
         default=5,
-        help="Number of epochs for client"
+        help="Number of epochs for client",
     )
     args = parser.parse_args()
 
