@@ -83,6 +83,7 @@ if __name__ == "__main__":
             "grad_mask": mask,
             "named_params": named_params,
         },
+        max_steps=4,
         scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 
@@ -94,6 +95,6 @@ if __name__ == "__main__":
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=args.client_labels,  # only samples of #client_label labels on average
-        wandb_project_name="fl_non_iid_model_edit",
+        wandb_project_name="fl_non_iid_model_edit_MAX_STEP",
     )
     fedav.train()

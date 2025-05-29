@@ -61,6 +61,7 @@ if __name__ == "__main__":
             "momentum": 0.9,
             "weight_decay": 5e-4,
         },
+        max_steps=4,
         scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 
@@ -72,6 +73,6 @@ if __name__ == "__main__":
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=args.client_labels,  # only samples of #client_label labels on average
-        wandb_project_name="fl_non_iid",
+        wandb_project_name="fl_non_iid_max_step",
     )
     fedav.train()
