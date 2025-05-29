@@ -147,8 +147,7 @@ class FederatedAveraging:
         optimizer_params = self.client_training_params.optimizer_params
         _num_classes = f"_{self._num_classes}" if self._num_classes else ""
         return (
-            f"mom_{optimizer_params.get('momentum'):.2f}_decay_{optimizer_params.get('weight_decay'):.3f}_lr"
-            + f"_{self.client_training_params.learning_rate:.5f}_{self.sharding_type.name}"
+            f"lr_{self.client_training_params.learning_rate:.5f}_bs_{self._batch_size}_{self.sharding_type.name}"
             + _num_classes
         )
 
