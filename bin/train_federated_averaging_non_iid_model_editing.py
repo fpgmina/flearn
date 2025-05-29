@@ -12,8 +12,11 @@ from optim.ssgd import SparseSGDM
 from models.dino_backbone import get_dino_backbone_model
 from utils.model_utils import get_device
 
+# in FederatedAveraging I sample 10 clients per round.
+# for each client: number of local steps: epochs * (500 / batch_size) e.g. epochs=1, batch_size=64 ==> local_steps=8
+# Keep total number of optimization steps constant: #rounds * 10 * 8
+
 if __name__ == "__main__":
-    batch_size = 32
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -34,8 +37,15 @@ if __name__ == "__main__":
         "--epochs",
         type=int,
         required=True,
-        default=5,
+        default=1,
         help="Number of epochs for client",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        required=True,
+        default=40,
+        help="Number of rounds of communications between server and clients",
     )
     args = parser.parse_args()
 
@@ -80,6 +90,7 @@ if __name__ == "__main__":
         global_model=model,
         trainset=trainset,
         valset=valset,
+        rounds=args.rounds,
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=args.client_labels,  # only samples of #client_label labels on average

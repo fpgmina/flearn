@@ -9,6 +9,9 @@ from dataset.cifar_100 import (
 )
 from models.dino_backbone import get_dino_backbone_model
 
+# in FederatedAveraging I sample 10 clients per round.
+# for each client: number of local steps: epochs * (500 / batch_size) e.g. epochs=1, batch_size=64 ==> local_steps=8
+# Keep total number of optimization steps constant: #rounds * 10 * 8
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -25,10 +28,24 @@ if __name__ == "__main__":
         default=1e-3,
         help="Learning Rate of the model",
     )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        required=True,
+        default=1,
+        help="Number of epochs for client",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        required=True,
+        default=40,
+        help="Number of rounds of communications between server and clients",
+    )
 
     args = parser.parse_args()
 
-    train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=32)
+    train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=64)
     model = get_dino_backbone_model()
     trainset, valset, _ = get_cifar_datasets()
 
@@ -39,7 +56,7 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         optimizer_class=torch.optim.SGD,  # type: ignore
         scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
-        epochs=5,  # TODO you might need to train harder with non iid distributions
+        epochs=args.epochs,
         optimizer_params={
             "momentum": 0.9,
             "weight_decay": 5e-4,
@@ -51,6 +68,7 @@ if __name__ == "__main__":
         global_model=model,
         trainset=trainset,
         valset=valset,
+        rounds=args.rounds,
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=args.client_labels,  # only samples of #client_label labels on average
