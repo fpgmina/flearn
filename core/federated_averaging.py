@@ -77,7 +77,7 @@ class FederatedAveraging:
         _num_clients (int): Total number of simulated clients. Default is 100.
         _client_fraction (float): Fraction of clients selected in each round. Default is 0.1.
         _rounds (int): Number of communication rounds between server and clients. Default is 10.
-        _batch_size (int): Batch size for training and validation. Default is 32.
+        _batch_size (int): Batch size for training and validation. Default is 64.
         _num_classes (Optional[int]): Number of classes for non-IID sharding. Required if NON_IID.
         _seed (int): Base seed for reproducibility. Default is 42.
         _wandb_project_name (str): Base name for training and WandB logging.
@@ -103,7 +103,7 @@ class FederatedAveraging:
     _rounds: int = attr.ib(
         default=10
     )  # the number of times the central server communicates with the client devices
-    _batch_size: int = attr.ib(default=32)
+    _batch_size: int = attr.ib(default=64)
     _num_classes: Optional[int] = attr.ib(
         default=None
     )  # num classes for non iid sharing
