@@ -30,6 +30,13 @@ if __name__ == "__main__":
         default=1e-3,
         help="Learning Rate of the model",
     )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        required=True,
+        default=5,
+        help="Number of epochs for client"
+    )
     args = parser.parse_args()
 
     momentum = 0.9
@@ -59,7 +66,7 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         optimizer_class=SparseSGDM,  # type: ignore
         scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
-        epochs=5,
+        epochs=args.epochs,
         optimizer_params={
             "momentum": momentum,
             "weight_decay": weight_decay,
