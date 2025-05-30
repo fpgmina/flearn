@@ -15,6 +15,7 @@ from tqdm import tqdm
 from core.train import train_model, compute_predictions
 from core.train_params import TrainingParams, is_nn_module
 from dataset.cifar_100 import get_dataloader
+from optim.ssgd import is_custom_optimizer
 from utils.model_utils import iid_sharding, non_iid_sharding
 from utils.numpy_utils import numpy_random_seed
 
@@ -144,7 +145,6 @@ class FederatedAveraging:
 
     @property
     def _session_name(self) -> str:
-        optimizer_params = self.client_training_params.optimizer_params
         _num_classes = f"_{self._num_classes}" if self._num_classes else ""
         return (
             f"lr_{self.client_training_params.learning_rate:.5f}_bs_{self._batch_size}_{self.sharding_type.name}"
@@ -215,13 +215,15 @@ class FederatedAveraging:
             # Train the selected clients locally (simulated by local training process)
             for client_id in tqdm(selected_clients):
                 local_model = copy.deepcopy(self.global_model)
+                optimizer_params = {**self.client_training_params.optimizer_params}
+                if is_custom_optimizer(self.optimizer_class):  # type: ignore
+                    optimizer_params["named_params"] = dict(
+                        local_model.named_parameters()
+                    )
                 training_params = attr.evolve(
                     self.client_training_params,
                     model=local_model,
-                    optimizer_params={
-                        **self.client_training_params.optimizer_params,
-                        **{"named_params": dict(local_model.named_parameters())},
-                    },
+                    optimizer_params=optimizer_params,
                 )
                 train_loader = get_dataloader(
                     self.trainset,

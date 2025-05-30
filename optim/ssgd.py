@@ -96,3 +96,9 @@ class SparseSGDM(SGD):
                     param.grad.data *= self.grad_mask[name]
 
         return super().step(closure)
+
+
+def is_custom_optimizer(optimizer_class):
+    return optimizer_class in {
+        SparseSGDM,
+    }
