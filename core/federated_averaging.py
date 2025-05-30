@@ -216,7 +216,7 @@ class FederatedAveraging:
             for client_id in tqdm(selected_clients):
                 local_model = copy.deepcopy(self.global_model)
                 optimizer_params = {**self.client_training_params.optimizer_params}
-                if is_custom_optimizer(self.optimizer_class):  # type: ignore
+                if is_custom_optimizer(self.client_training_params.optimizer_class):  # type: ignore
                     optimizer_params["named_params"] = dict(
                         local_model.named_parameters()
                     )
