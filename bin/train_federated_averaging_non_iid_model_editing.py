@@ -65,6 +65,13 @@ if __name__ == "__main__":
         default=40,
         help="Number of rounds of communications between server and clients",
     )
+
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        required=True,
+        default=8,
+    )
     args = parser.parse_args()
 
     momentum = 0.9
@@ -101,7 +108,7 @@ if __name__ == "__main__":
             "grad_mask": mask,
             "named_params": named_params,
         },
-        max_steps=4,
+        max_steps=args.max_steps,
         scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 

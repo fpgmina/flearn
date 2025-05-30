@@ -43,6 +43,13 @@ if __name__ == "__main__":
         help="Number of rounds of communications between server and clients",
     )
 
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        required=True,
+        default=8,
+    )
+
     args = parser.parse_args()
 
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=64)
@@ -61,7 +68,7 @@ if __name__ == "__main__":
             "momentum": 0.9,
             "weight_decay": 5e-4,
         },
-        max_steps=4,
+        max_steps=args.max_steps,
         scheduler_params={"T_max": 10, "eta_min": 1e-5},
     )
 
