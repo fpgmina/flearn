@@ -16,6 +16,24 @@ from utils.model_utils import get_device
 # for each client: number of local steps: epochs * (500 / batch_size) e.g. epochs=1, batch_size=64 ==> local_steps=8
 # Keep total number of optimization steps constant: #rounds * 10 * 8
 
+# Federated learning configuration tips:
+#
+# 1. IID client data:
+#    - Local updates approximate the true gradient (unbiased).
+#    - You can increase the number of local steps per round (E)
+#      to drastically reduce the number of global rounds (T).
+#    - E.g., moving from E=1 (FedSGD) to larger E (FedAvg) often cuts communication by 10–100×.
+#
+# 2. Highly non-IID client data:
+#    - Local updates drift in different directions (client drift).
+#    - Large E can slow or destabilize convergence.
+#    - Use fewer local steps per round (smaller E) and more global rounds (larger T)
+#      to achieve the same final accuracy.
+#
+# To summarize:
+# Non-IID: use fewer local steps per client (smaller E), and more global rounds (larger T).
+# IID: use more local steps (larger E) to slash the number of rounds (smaller T).
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
