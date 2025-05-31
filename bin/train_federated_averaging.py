@@ -62,6 +62,6 @@ if __name__ == "__main__":
         client_training_params=client_training_params,
         rounds=args.rounds,
         sharding_type=ShardingType.IID,
-        wandb_project_name="fl_iid",
+        wandb_project_name=f"fl_iid_max_step_{args.max_steps}",
     )
     fedav.train()
