@@ -33,6 +33,9 @@ from utils.model_utils import get_device
 # To summarize:
 # Non-IID: use fewer local steps per client (smaller E), and more global rounds (larger T).
 # IID: use more local steps (larger E) to slash the number of rounds (smaller T).
+# non-IID 1, 5: 4 local steps, 60 rounds
+# non-IID 10: 8 local steps 30 rounds
+# non-IID 50: 16 local steps 15 rounds 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
