@@ -49,8 +49,10 @@ def get_cifar_datasets(seed: int = 42) -> Tuple[Dataset, Dataset, Dataset]:
     train_transform = get_train_transform()
     val_test_transform = get_val_test_tranform()
 
-    full_train_dataset = CIFAR100(root="./data", train=True, download=True)
-    test_dataset = CIFAR100(root="./data", train=False, transform=val_test_transform)
+    data_root = "/content/data"
+
+    full_train_dataset = CIFAR100(root=data_root, train=True, download=True)
+    test_dataset = CIFAR100(root=data_root, train=False, transform=val_test_transform)
 
     # Create train/val split indices
     len_train = len(full_train_dataset)
@@ -61,8 +63,8 @@ def get_cifar_datasets(seed: int = 42) -> Tuple[Dataset, Dataset, Dataset]:
 
     train_indices, val_indices = indices[:split], indices[split:]
 
-    train_dataset = CIFAR100(root="./data", train=True, transform=train_transform)
-    val_dataset = CIFAR100(root="./data", train=True, transform=val_test_transform)
+    train_dataset = CIFAR100(root=data_root, train=True, transform=train_transform)
+    val_dataset = CIFAR100(root=data_root, train=True, transform=val_test_transform)
 
     train_dataset = Subset(train_dataset, train_indices)
     val_dataset = Subset(val_dataset, val_indices)
