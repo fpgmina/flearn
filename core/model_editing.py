@@ -421,36 +421,6 @@ def compute_fisher_diagonal(
         raise ValueError(f"Unknown pruning type: {pruning_type}")
 
 
-def compute_param_squared_fisher_diagonal(
-    model: nn.Module,
-    dataloader: DataLoader,
-    loss_fn: nn.Module,
-    num_batches: Optional[int] = None,
-    mask: Optional[Mask] = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Returns the elementwise product of parameter squared and Fisher diagonal:
-
-    Args:
-        model, dataloader, loss_fn, num_batches, mask: same as compute_fisher_diagonal
-
-    Returns:
-        param_squared_fisher: A flattened tensor containing (theta_i**2) * Fisher_i for each parameter
-    """
-    # Compute the Fisher diagonal as before
-    fisher_diag = compute_fisher_diagonal(
-        model, dataloader, loss_fn, num_batches=num_batches, mask=mask
-    )
-
-    # Flatten and concatenate model parameters
-    params = torch.cat([p.detach().flatten() for p in model.parameters()])
-
-    # Elementwise square and multiply by fisher_diag
-    param_squared_fisher = (params**2) * fisher_diag
-
-    return param_squared_fisher, fisher_diag
-
-
 def create_fisher_mask(
     fisher_diag: torch.Tensor, model: nn.Module, sparsity: float = 0.9
 ) -> Mask:
