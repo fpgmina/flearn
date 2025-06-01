@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import enum
+
 import attr
 import logging
 
@@ -10,6 +12,11 @@ from torch import nn
 from torch.utils.data import DataLoader
 from typing import Dict, Optional, Union, Iterable, Tuple, List
 from utils.model_utils import get_device
+
+
+class PruningType(enum.Enum):
+    FISHER = enum.auto()
+    HESSIAN_PARAM_SQUARED = enum.auto()
 
 
 @attr.s(frozen=True)
@@ -304,6 +311,7 @@ def compute_fisher_diagonal(
     loss_fn: nn.Module,
     num_batches: Optional[int] = None,
     mask: Optional[Mask] = None,
+    pruning_type: PruningType = PruningType.FISHER,
 ) -> torch.Tensor:
     """
     Approximate the diagonal of the Fisher Information Matrix (FIM) using squared gradients computed
@@ -351,7 +359,9 @@ def compute_fisher_diagonal(
         num_batches (Optional[int]): If set, only the first `num_batches` are used
             to estimate the Fisher information. Useful for faster computation.
         mask (Optional[Mask]): If provided, compute gradients only for parameters that are not frozen.
-
+        pruning_type (Optional[PruningType]): Pruning type to use, defaults to PruningType.FISHER.
+            if PruningType.HESSIAN_PARAM_SQUARED returns (theta_i ** 2) * fisher_diag[i], which is an estimator
+            for expected loss increase after pruning, as in Delta L ≈ 0.5 * theta_i^2 * H_ii.
     Returns:
         fisher_diag (torch.Tensor): A flattened tensor containing the Fisher diagonal estimate,
         one element per parameter.
@@ -399,7 +409,16 @@ def compute_fisher_diagonal(
     fisher_diag = [f / total_batches for f in fisher_diag]
 
     # Flatten and concatenate all parameter diagonals into one tensor
-    return torch.cat([f.flatten() for f in fisher_diag])
+    fisher_diag = torch.cat([f.flatten() for f in fisher_diag])
+    if pruning_type == PruningType.FISHER:
+        return fisher_diag
+    elif pruning_type == PruningType.HESSIAN_PARAM_SQUARED:
+        params = torch.cat([p.detach().flatten() for p in model.parameters()])
+        # Elementwise square and multiply by fisher_diag
+        param_squared_fisher = (params**2) * fisher_diag
+        return param_squared_fisher
+    else:
+        raise ValueError(f"Unknown pruning type: {pruning_type}")
 
 
 def compute_param_squared_fisher_diagonal(
@@ -411,9 +430,6 @@ def compute_param_squared_fisher_diagonal(
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Returns the elementwise product of parameter squared and Fisher diagonal:
-        param_squared_fisher[i] = (theta_i ** 2) * fisher_diag[i]
-    This is an estimator for expected loss increase after pruning, as in:
-        Delta L ≈ 0.5 * theta_i^2 * H_ii
 
     Args:
         model, dataloader, loss_fn, num_batches, mask: same as compute_fisher_diagonal

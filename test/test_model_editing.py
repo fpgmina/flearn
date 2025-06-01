@@ -9,6 +9,7 @@ from core.model_editing import (
     _adapt_fisher_mask,
     progressive_mask_calibration,
     Mask,
+    PruningType,
 )
 from utils.model_utils import get_device
 
@@ -107,7 +108,10 @@ def test_mask_update():
         ), f"Mismatch in {name}: expected {expected_mask[name]}, got {updated.mask_dict[name]}"
 
 
-def test_compute_fisher_diagonal(tiny_cnn):
+@pytest.mark.parametrize(
+    "pruning_type", [PruningType.FISHER, PruningType.HESSIAN_PARAM_SQUARED]
+)
+def test_compute_fisher_diagonal(tiny_cnn, pruning_type):
     # Create dummy dataset (batch of 8, 1x8x8 images, 10 classes)
     X = torch.randn(8, 1, 8, 8)
     y = torch.randint(0, 10, (8,))
@@ -117,7 +121,9 @@ def test_compute_fisher_diagonal(tiny_cnn):
     model = tiny_cnn
     loss_fn = nn.CrossEntropyLoss()
 
-    fisher_diag = compute_fisher_diagonal(model, dataloader, loss_fn, num_batches=2)
+    fisher_diag = compute_fisher_diagonal(
+        model, dataloader, loss_fn, num_batches=2, pruning_type=pruning_type
+    )
 
     total_params = sum(p.numel() for p in model.parameters())  # 1490
     assert isinstance(fisher_diag, torch.Tensor)
