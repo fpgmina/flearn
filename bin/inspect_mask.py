@@ -29,3 +29,4 @@ if __name__ == "__main__":
 
 # python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask_90.pth"
 # python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask_90_NO_WARMUP.pth"
+# python ./bin/inspect_mask.py --mask_path "./checkpoints/progressive_fisher_mask_90_HESSIAN_PARAM_SQUARED.pth"
