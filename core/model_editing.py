@@ -475,6 +475,7 @@ def progressive_mask_calibration(
     target_sparsity: float = 0.9,
     rounds: int = 5,
     warn_tolerance: float = 0.02,
+    pruning_type: PruningType = PruningType.FISHER,
 ) -> Mask:
     """
     Progressively create a gradient mask using Fisher info, applying pruning at each round.
@@ -492,6 +493,7 @@ def progressive_mask_calibration(
         target_sparsity (float): Target sparsity at the end of pruning.
         rounds (int): Number of pruning rounds.
         warn_tolerance (float): Relative deviation tolerance to trigger a warning.
+        pruning_type (PruningType): Type of pruning, defaults to PruningType.FISHER.
     """
     assert isinstance(rounds, int)
     assert rounds > 1, "rounds needs to be greater than 1"
@@ -510,11 +512,11 @@ def progressive_mask_calibration(
     sparsity_targets = np.geomspace(0.1, target_sparsity, rounds)
 
     for r, sparsity_target in enumerate(sparsity_targets):
-        print(f"[Round {r}] Target sparsity: {sparsity_target}")
+        logging.info(f"[Round {r}] Target sparsity: {sparsity_target}")
 
         # Recompute Fisher based on the masked model
         fisher_diag = compute_fisher_diagonal(
-            model, dataloader, loss_fn, mask=grad_mask
+            model, dataloader, loss_fn, mask=grad_mask, pruning_type=pruning_type
         )
 
         # Count how many parameters are already frozen and how many parameters are still to mask
@@ -535,7 +537,7 @@ def progressive_mask_calibration(
         # new_mask (new_mask=0), update it so that grad_mask=0, thus gradually increasing sparsity.
         grad_mask = grad_mask.update(new_mask)
         masked = grad_mask.num_zeroed_parameters
-        print(
+        logging.info(
             f"[Round {r}] Actual Sparsity: {masked/total_params}. Masked: {masked} / {total_params}. "
         )
 
