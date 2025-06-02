@@ -12,7 +12,6 @@ import copy
 
 from tqdm import tqdm
 
-from core.model_editing import PruningType
 from core.train import train_model, compute_predictions
 from core.train_params import TrainingParams, is_nn_module
 from dataset.cifar_100 import get_dataloader
