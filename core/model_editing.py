@@ -92,6 +92,37 @@ class Mask:
             for name, mask in self.mask_dict.items()
         }
 
+    def check_sparsity(
+        self, target_sparsity: float, tolerance: float = 0.02
+    ) -> Tuple[float, float, float]:
+        """
+         Verifies that `mask` has (approximately) `target_sparsity` zeroed parameters.
+        Raises a RuntimeError if the actual sparsity deviates from `target_sparsity` by more than `tolerance`.
+
+        Args:
+            target_sparsity (float): Desired fraction of parameters that should be zeroed (e.g. 0.9 for 90%).
+            tolerance (float):      Allowed relative deviation (default 2%).
+
+        Raises:
+            RuntimeError: if |actual_sparsity - target_sparsity| / target_sparsity > tolerance.
+        """
+        total_params = self.num_total_parameters
+        zeroed_params = self.num_zeroed_parameters
+        if total_params == 0:
+            raise ValueError("Mask contains no parameters to evaluate.")
+
+        actual_sparsity = zeroed_params / total_params
+        rel_error = abs(actual_sparsity - target_sparsity) / target_sparsity
+
+        if rel_error > tolerance:
+            raise RuntimeError(
+                f"Sparsity check failed: actual_sparsity={actual_sparsity:.4f} "
+                f"deviates from target {target_sparsity:.4f} by {rel_error:.2%}, "
+                f"which exceeds tolerance {tolerance:.2%}."
+            )
+        # Otherwise, it’s within tolerance—nothing to do
+        return actual_sparsity, total_params, zeroed_params
+
     def update(self, other: Mask) -> Mask:
         """
         Return new MaskDict with parameters frozen if frozen in either mask (logical AND on 1s).
@@ -577,44 +608,3 @@ def _adapt_fisher_mask(
         for name, param in model.named_parameters()
     }
     return adapted_mask
-
-
-def check_mask_sparsity(
-    mask: Mask, target_sparsity: float, tolerance: float = 0.02
-) -> Tuple[float, float, float]:
-    """
-    Verifies that `mask` has (approximately) `target_sparsity` zeroed parameters.
-    Raises a RuntimeError if the actual sparsity deviates from `target_sparsity` by more than `tolerance`.
-
-    Args:
-        mask (Mask):           The Mask returned by progressive_mask_calibration.
-        target_sparsity (float): Desired fraction of parameters that should be zeroed (e.g. 0.9 for 90%).
-        tolerance (float):      Allowed relative deviation (default 2%).
-
-    Raises:
-        RuntimeError: if |actual_sparsity - target_sparsity| / target_sparsity > tolerance.
-    """
-    # Count total number of parameters and total number zeroed in the mask
-    total_params = 0
-    zeroed_params = 0
-
-    for name, tensor_mask in mask.mask_dict.items():
-        # Ensure tensor_mask is on CPU so we can call .numel() and comparisons
-        m = tensor_mask.detach().cpu()
-        total_params += m.numel()
-        zeroed_params += int(torch.sum(m == 0).item())
-
-    if total_params == 0:
-        raise ValueError("Mask contains no parameters to evaluate.")
-
-    actual_sparsity = zeroed_params / total_params
-    rel_error = abs(actual_sparsity - target_sparsity) / target_sparsity
-
-    if rel_error > tolerance:
-        raise RuntimeError(
-            f"Sparsity check failed: actual_sparsity={actual_sparsity:.4f} "
-            f"deviates from target {target_sparsity:.4f} by {rel_error:.2%}, "
-            f"which exceeds tolerance {tolerance:.2%}."
-        )
-    # Otherwise, it’s within tolerance—nothing to do
-    return actual_sparsity, total_params, zeroed_params

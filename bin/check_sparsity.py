@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 
-from core.model_editing import Mask, check_mask_sparsity
+from core.model_editing import Mask
 
 if __name__ == "__main__":
 
@@ -10,8 +10,8 @@ if __name__ == "__main__":
 
     mask = Mask.load_state_dict(torch.load(mask_file, map_location=torch.device("cpu")))
 
-    actual_sparsity, total_params, zeroed_params = check_mask_sparsity(
-        mask, target_sparsity=0.9, tolerance=0.02
+    actual_sparsity, total_params, zeroed_params = mask.check_sparsity(
+        target_sparsity=0.9, tolerance=0.02
     )
 
     print(
@@ -21,10 +21,9 @@ if __name__ == "__main__":
     mask_file = root / "progressive_fisher_mask_90.pth"
     mask = Mask.load_state_dict(torch.load(mask_file, map_location=torch.device("cpu")))
 
-    actual_sparsity, total_params, zeroed_params = check_mask_sparsity(
-        mask, target_sparsity=0.9, tolerance=0.02
+    actual_sparsity, total_params, zeroed_params = mask.check_sparsity(
+        target_sparsity=0.9, tolerance=0.02
     )
-
     print(
         f"PROGRESSIVE FISHER STANDARD -- Sparsity: {actual_sparsity:.2%}, Total params: {total_params}, Zeroed params: {zeroed_params}"
     )
