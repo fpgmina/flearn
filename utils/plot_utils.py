@@ -291,7 +291,7 @@ def plot_wandb_comparison(
     )
 
     axes[0].set_title("Loss")
-    axes[0].set_xlabel("Step")
+    axes[0].set_xlabel("Round")
     axes[0].set_ylabel("Loss")
     axes[0].grid(True)
 
@@ -308,7 +308,7 @@ def plot_wandb_comparison(
     )
 
     axes[1].set_title("Accuracy")
-    axes[1].set_xlabel("Step")
+    axes[1].set_xlabel("Round")
     axes[1].set_ylabel("Accuracy")
     axes[1].grid(True)
 
@@ -317,6 +317,32 @@ def plot_wandb_comparison(
 
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches="tight")
+
+
+def fetch_val_metrics(wandb_path):
+    """
+    Fetch validation accuracy and loss per epoch from a specific W&B run.
+
+    Args:
+        wandb_path (str): Path to the run in the format "entity/project/run_id".
+
+    Returns:
+        pd.DataFrame: Table with columns [epoch, Validation Loss, Validation Accuracy]
+    """
+    # Keys to extract from run history
+    metric_keys = {
+        "Validation Loss": "Validation Loss",
+        "Validation Accuracy": "Validation Accuracy",
+    }
+
+    api = wandb.Api()
+    run = api.run(wandb_path)
+    history = run.history(samples=10000)
+    print(history)
+
+    # Use 'Epoch' as the index if it exists
+    df = history[["Validation Loss", "Validation Accuracy"]].copy()
+    return df
 
 
 if __name__ == "__main__":
