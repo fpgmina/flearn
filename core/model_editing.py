@@ -50,6 +50,7 @@ class Mask:
     """
 
     mask_dict: Dict[str, torch.Tensor] = attr.ib(kw_only=True)
+    validate_binary: bool = attr.ib(default=True)
 
     def __attrs_post_init__(self):
         assert isinstance(
@@ -57,22 +58,23 @@ class Mask:
         ), f"mask must be of type: Dict[str, torch.Tensor] and not of type:{type(self.mask_dict)}"
 
         # Validation: all masks must be binary (0 or 1), float or bool, and on the same device
-        devices = set()
-        for name, tensor in self.mask_dict.items():
-            if not torch.is_tensor(tensor):
-                raise TypeError(f"Mask for '{name}' is not a tensor.")
-            if tensor.dtype not in (torch.float32, torch.bool):
-                raise TypeError(
-                    f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}."
-                )
-            if not ((tensor == 0) | (tensor == 1)).all():
-                raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
-            devices.add(tensor.device)
+        if self.validate_binary:
+            devices = set()
+            for name, tensor in self.mask_dict.items():
+                if not torch.is_tensor(tensor):
+                    raise TypeError(f"Mask for '{name}' is not a tensor.")
+                if tensor.dtype not in (torch.float32, torch.bool):
+                    raise TypeError(
+                        f"Mask for '{name}' must be float32 or bool, got {tensor.dtype}."
+                    )
+                if not ((tensor == 0) | (tensor == 1)).all():
+                    raise ValueError(f"Mask for '{name}' must be binary (0 or 1).")
+                devices.add(tensor.device)
 
-        if len(devices) > 1:
-            raise ValueError(
-                f"All mask tensors must be on the same device. Found: {devices}"
-            )
+            if len(devices) > 1:
+                raise ValueError(
+                    f"All mask tensors must be on the same device. Found: {devices}"
+                )
 
     @property
     def device(self) -> torch.device:
@@ -256,6 +258,20 @@ class Mask:
 
     def get(self, name: str, default=None) -> torch.Tensor:
         return self.mask_dict.get(name, default)
+
+    def __sub__(self, other: Mask) -> Mask:
+        """
+        Element-wise subtraction of two masks (subtracts 0/1 values).
+        Resulting values can be -1, 0, or 1.
+        """
+        assert isinstance(other, Mask)
+        return Mask(
+            mask_dict={
+                k: self.mask_dict[k] - other.mask_dict[k]
+                for k in self.mask_dict if k in other.mask_dict
+            },
+            validate_binary=False,
+        )
 
 
 # Loss function (averaged over N samples):
