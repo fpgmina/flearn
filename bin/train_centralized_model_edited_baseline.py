@@ -55,13 +55,16 @@ def run_single(
     # thus it should encode shared structure in the gradients); we can therefore simplify this logic and compute directly
     # the mask on CIFAR100
 
-    mask_path = "/content/drive/MyDrive/progressive_fisher_mask_90.pth"
+    mask_path = (
+        "/content/drive/MyDrive/progressive_fisher_mask_90_HESSIAN_PARAM_SQUARED.pth"
+    )
     train_dataloader, val_dataloader = get_cifar_dataloaders(batch_size=batch_size)
     loss_fn = nn.CrossEntropyLoss()
     # Load model with editable backbone and modified head to fit on CIFAR100
     model = get_dino_backbone_model(freeze_backbone=False)
     mask = Mask.load_state_dict(torch.load(mask_path))
-    # TODO: cambia la head della mask cosi' che abbia 1s in modo che sia consistente con il model.
+    # cambia la head della mask cosi' che abbia 1s in modo che sia consistente con il model.
+    # (model ha random weight nella head, voglio poterli update)
     mask = mask.unmask_layers(["head.weight", "head.bias"])
 
     _training_name = (
@@ -97,7 +100,7 @@ def run_single(
         training_params=params,
         train_loader=train_dataloader,
         val_loader=val_dataloader,
-        project_name="centralized_model_edited_baseline",
+        project_name="centralized_model_edited_hessian",
     )
     best_acc = res_dict["best_accuracy"]
     return best_acc
