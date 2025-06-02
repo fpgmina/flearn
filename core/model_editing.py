@@ -268,7 +268,8 @@ class Mask:
         return Mask(
             mask_dict={
                 k: self.mask_dict[k] - other.mask_dict[k]
-                for k in self.mask_dict if k in other.mask_dict
+                for k in self.mask_dict
+                if k in other.mask_dict
             },
             validate_binary=False,
         )
