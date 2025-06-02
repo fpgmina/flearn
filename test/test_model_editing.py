@@ -6,12 +6,11 @@ from torch.utils.data import DataLoader, TensorDataset
 from core.model_editing import (
     compute_fisher_diagonal,
     create_fisher_mask,
-    _adapt_fisher_mask,
     progressive_mask_calibration,
     Mask,
     PruningType,
 )
-from utils.model_utils import get_device
+from utils.model_utils import get_device, _adapt_fisher_mask
 
 
 @pytest.fixture

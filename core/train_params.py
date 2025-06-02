@@ -7,6 +7,8 @@ from torch.optim.lr_scheduler import LRScheduler
 
 from optim.ssgd import SparseSGDM
 
+__all__ = ["TrainingParams"]
+
 
 def is_nn_module(instance, attribute, value):
     """Validator to check if the value is an instance of nn.Module or its subclass."""

@@ -14,6 +14,15 @@ from typing import Dict, Optional, Union, Iterable, Tuple, List
 from utils.model_utils import get_device
 
 
+__all__ = [
+    "PruningType",
+    "Mask",
+    "compute_fisher_diagonal",
+    "create_fisher_mask",
+    "progressive_mask_calibration",
+]
+
+
 class PruningType(enum.Enum):
     FISHER = enum.auto()
     HESSIAN_PARAM_SQUARED = enum.auto()
@@ -582,29 +591,3 @@ def progressive_mask_calibration(
             f"by {rel_error:.2%} (exceeds allowed tolerance of {warn_tolerance:.2%})."
         )
     return grad_mask
-
-
-def _adapt_fisher_mask(
-    mask_full: Dict[str, torch.Tensor],
-    model: nn.Module,
-) -> Dict[str, torch.Tensor]:
-    """
-    Adapt a Fisher-based mask created for a pre-trained model
-    to a new model that might have a different architecture (head).
-
-    Args:
-        mask_full (Dict[str, torch.Tensor]): Mask dictionary from the original model.
-        model (nn.Module): New model with possibly different architecture.
-
-    Returns:
-        Dict[str, torch.Tensor]: Adapted mask for the new model.
-    """
-    adapted_mask = {
-        name: (
-            mask_full[name]
-            if (name in mask_full and mask_full[name].shape == param.shape)
-            else torch.ones_like(param, device=param.device)
-        )
-        for name, param in model.named_parameters()
-    }
-    return adapted_mask

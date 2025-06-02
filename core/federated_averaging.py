@@ -12,12 +12,15 @@ import copy
 
 from tqdm import tqdm
 
+from core.model_editing import PruningType
 from core.train import train_model, compute_predictions
 from core.train_params import TrainingParams, is_nn_module
 from dataset.cifar_100 import get_dataloader
 from optim.ssgd import is_custom_optimizer
 from utils.model_utils import iid_sharding, non_iid_sharding
 from utils.numpy_utils import numpy_random_seed
+
+__all__ = ["federated_averaging", "FederatedAveraging"]
 
 
 class ShardingType(enum.Enum):
