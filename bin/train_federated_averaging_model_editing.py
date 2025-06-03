@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 from torch import nn
 from core.federated_averaging import FederatedAveraging, ShardingType
@@ -11,10 +13,33 @@ from models.dino_backbone import get_dino_backbone_model
 from utils.model_utils import get_device
 
 if __name__ == "__main__":
-    batch_size = 32
     momentum = 0.9
     weight_decay = 5e-4
     lr = 1e-3
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        required=True,
+        default=1,
+        help="Number of epochs for client",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        required=True,
+        default=60,
+        help="Number of rounds of communications between server and clients",
+    )
+
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        required=True,
+        default=4,
+    )
+    args = parser.parse_args()
 
     mask_path = "/content/drive/MyDrive/progressive_fisher_mask_90.pth"
     trainset, valset, _ = get_cifar_datasets()
@@ -40,13 +65,14 @@ if __name__ == "__main__":
         learning_rate=lr,
         optimizer_class=SparseSGDM,  # type: ignore
         scheduler_class=torch.optim.lr_scheduler.CosineAnnealingLR,  # type: ignore
-        epochs=5,
+        epochs=args.epochs,
         optimizer_params={
             "momentum": momentum,
             "weight_decay": weight_decay,
             "grad_mask": mask,
             "named_params": named_params,
         },
+        max_steps=args.max_steps,
         scheduler_params={"T_max": 10},
     )
 
@@ -56,6 +82,7 @@ if __name__ == "__main__":
         valset=valset,
         client_training_params=client_training_params,
         sharding_type=ShardingType.IID,
-        wandb_project_name="fl_iid_model_edit",
+        rounds=args.rounds,
+        wandb_project_name="fl_iid_model_edit_max_step_4",
     )
     fedav.train()
