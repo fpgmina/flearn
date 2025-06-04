@@ -41,8 +41,7 @@ Found under `optim/`.
 
 ## 📂 Dataset Modules
 
-Provides standardized **PyTorch-style dataloaders** for various common datasets.  
-These modules handle preprocessing, transforms, and batch loading.
+Provides standardized PyTorch-style dataloaders for various common datasets.  
 Located under `dataset/`.
 
 ---
