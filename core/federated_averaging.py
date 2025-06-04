@@ -272,5 +272,3 @@ class FederatedAveraging:
 
         wandb.finish()
         logging.info("FL Training completed.")
-
-
