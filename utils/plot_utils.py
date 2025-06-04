@@ -373,3 +373,5 @@ if __name__ == "__main__":
 # python utils/plot_utils.py francesco-mina-fpgm/centralized_model_edited_baseline/runs/4latjoqr --title "CENTRALIZED MODEL EDITED"  # mask with 0 in the head
 # python utils/plot_utils.py francesco-mina-fpgm/centralized_model_edited_baseline/runs/w3oyu1d9 --title "CENTRALIZED MODEL EDITED"  # mask with 1 in the head
 # python utils/plot_utils.py francesco-mina-fpgm/fl_iid_model_edit/runs/u6nusf04 --title "FEDERATED MODEL EDITED IID" --is_federated True
+# python utils/plot_utils.py "francesco-mina-fpgm/fl_iid_max_step_4/runs/u6x9ql4q" --title "FEDERATED IID" --is_federated True
+# python utils/plot_utils.py "francesco-mina-fpgm/fl_iid_model_edit_max_step_4/runs/kaw063k0" --title "FEDERATED MODEL EDITED IID" --is_federated True
