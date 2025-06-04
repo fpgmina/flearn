@@ -41,7 +41,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    mask_path = "/content/drive/MyDrive/progressive_fisher_mask_90.pth"
+    mask_path = (
+        "/content/drive/MyDrive/progressive_fisher_mask_90_HESSIAN_PARAM_SQUARED.pth"
+    )
     trainset, valset, _ = get_cifar_datasets()
     loss_fn = nn.CrossEntropyLoss()
     # Load model with editable backbone and modified head to fit on CIFAR100
