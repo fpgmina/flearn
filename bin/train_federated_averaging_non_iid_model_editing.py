@@ -125,6 +125,6 @@ if __name__ == "__main__":
         client_training_params=client_training_params,
         sharding_type=ShardingType.NON_IID,
         num_classes=args.client_labels,  # only samples of #client_label labels on average
-        wandb_project_name="fl_non_iid_model_edit_MAX_STEP",
+        wandb_project_name="fl_non_iid_model_edit_HESSIAN",
     )
     fedav.train()
