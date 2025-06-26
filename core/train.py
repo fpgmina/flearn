@@ -106,8 +106,8 @@ def compute_predictions(
                 device
             )  # Move to the appropriate device
 
-            # Forward pass
-            preds = model(inputs)  # Get raw model predictions
+            # Forward pass: get raw model predictions
+            preds = model(inputs)
 
             if loss_function is not None:
                 loss += loss_function(preds, targets).item()
