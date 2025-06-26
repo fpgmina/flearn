@@ -41,7 +41,7 @@ def is_scheduler_class(instance, attribute, value):
 @attr.s(frozen=True, kw_only=True)
 class TrainingParams:
     """
-    A class to store the parameters required for core a model.
+    A class to store the parameters required to train a model.
 
     Attributes:
         training_name (str): A name for the core experiment.
